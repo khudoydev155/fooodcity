@@ -20,6 +20,8 @@ from aiogram.types import (
     WebAppData,
     WebAppInfo,
 )
+from aiohttp import web
+from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_application
 from dotenv import load_dotenv
 
 # ---------------------------------------------------------------------------
@@ -32,11 +34,18 @@ BOT_TOKEN: str = os.getenv("BOT_TOKEN", "")
 MINI_APP_URL: str = os.getenv("MINI_APP_URL", "")
 ADMIN_CHAT_ID: str = os.getenv("ADMIN_CHAT_ID", "")
 PROXY_URL: str = os.getenv("PROXY_URL", "")  # e.g. socks5://user:pass@host:port
+WEBHOOK_URL: str = os.getenv("WEBHOOK_URL", "")
+WEBHOOK_SECRET: str = os.getenv("WEBHOOK_SECRET", "")
+PORT: int = int(os.getenv("PORT", 8000))
 
 if not BOT_TOKEN:
     raise ValueError("BOT_TOKEN is not set. Check your .env file.")
 if not MINI_APP_URL:
     raise ValueError("MINI_APP_URL is not set. Check your .env file or Railway Variables.")
+if not WEBHOOK_URL:
+    raise ValueError("WEBHOOK_URL is not set.")
+if not WEBHOOK_SECRET:
+    raise ValueError("WEBHOOK_SECRET is not set.")
 
 # ---------------------------------------------------------------------------
 # Logging
@@ -241,10 +250,39 @@ async def handle_web_app_data(message: Message) -> None:
 # ---------------------------------------------------------------------------
 
 
-async def main() -> None:
-    logger.info("Starting Food City bot...")
-    await dp.start_polling(bot, skip_updates=True)
+async def health_check(request: web.Request):
+    return web.json_response({"status": "ok"})
+
+
+async def on_startup(bot: Bot) -> None:
+    logger.info("Setting webhook...")
+    await bot.set_webhook(url=f"{WEBHOOK_URL}/webhook/{WEBHOOK_SECRET}")
+
+
+async def on_shutdown(bot: Bot) -> None:
+    logger.info("Dropping webhook...")
+    await bot.delete_webhook()
+
+
+def main() -> None:
+    logger.info("Starting Food City bot in webhook mode...")
+    
+    dp.startup.register(on_startup)
+    dp.shutdown.register(on_shutdown)
+    
+    app = web.Application()
+    app.router.add_get("/health", health_check)
+    
+    webhook_requests_handler = SimpleRequestHandler(
+        dispatcher=dp,
+        bot=bot,
+        secret_token=WEBHOOK_SECRET,
+    )
+    webhook_requests_handler.register(app, path=f"/webhook/{WEBHOOK_SECRET}")
+    setup_application(app, dp, bot=bot)
+    
+    web.run_app(app, host="0.0.0.0", port=PORT)
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()
