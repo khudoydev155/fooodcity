@@ -29,12 +29,14 @@ from dotenv import load_dotenv
 load_dotenv()
 
 BOT_TOKEN: str = os.getenv("BOT_TOKEN", "")
-MINI_APP_URL: str = os.getenv("MINI_APP_URL", "https://yourdomain.com/index.html")
+MINI_APP_URL: str = os.getenv("MINI_APP_URL", "")
 ADMIN_CHAT_ID: str = os.getenv("ADMIN_CHAT_ID", "")
 PROXY_URL: str = os.getenv("PROXY_URL", "")  # e.g. socks5://user:pass@host:port
 
 if not BOT_TOKEN:
     raise ValueError("BOT_TOKEN is not set. Check your .env file.")
+if not MINI_APP_URL:
+    raise ValueError("MINI_APP_URL is not set. Check your .env file or Railway Variables.")
 
 # ---------------------------------------------------------------------------
 # Logging
