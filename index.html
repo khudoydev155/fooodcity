@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0"/>
+<title>🍔 Food City</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{
+  --bg:#1C1C1E;--bg2:#2C2C2E;--bg3:#3A3A3C;
+  --accent:#FF6B35;--accent2:#FF8C42;
+  --text:#FFFFFF;--text2:#EBEBF5CC;--text3:#EBEBF599;
+  --border:#3A3A3C;--card:#2C2C2E;
+  --radius:16px;--shadow:0 4px 24px rgba(0,0,0,.4);
+}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;min-height:100vh;overflow-x:hidden}
+
+/* PAGES */
+.page{display:none;flex-direction:column;min-height:100vh;animation:fadeIn .25s ease}
+.page.active{display:flex}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+/* HEADER */
+.header{position:sticky;top:0;z-index:100;background:var(--bg);border-bottom:1px solid var(--border);padding:12px 16px;display:flex;align-items:center;justify-content:space-between}
+.logo{font-size:20px;font-weight:700;display:flex;align-items:center;gap:8px}
+.logo span{background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.cart-btn{position:relative;background:var(--bg3);border:none;border-radius:12px;width:44px;height:44px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:20px;transition:transform .15s}
+.cart-btn:active{transform:scale(.9)}
+.badge{position:absolute;top:-4px;right:-4px;background:var(--accent);color:#fff;font-size:11px;font-weight:700;min-width:18px;height:18px;border-radius:9px;display:flex;align-items:center;justify-content:center;padding:0 4px;display:none}
+.badge.show{display:flex}
+
+/* CATEGORIES */
+.cats{display:flex;gap:8px;padding:12px 16px;overflow-x:auto;scrollbar-width:none;border-bottom:1px solid var(--border)}
+.cats::-webkit-scrollbar{display:none}
+.cat{flex-shrink:0;padding:8px 16px;border-radius:20px;border:1.5px solid var(--border);background:transparent;color:var(--text2);font-size:14px;font-weight:500;cursor:pointer;transition:all .2s;white-space:nowrap}
+.cat.active{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:700}
+
+/* GRID */
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:16px;padding-bottom:100px}
+.card{background:var(--card);border-radius:var(--radius);border:1px solid var(--border);overflow:hidden;display:flex;flex-direction:column;transition:transform .2s,box-shadow .2s}
+.card:active{transform:scale(.98)}
+.card-top{position:relative;background:var(--bg3);padding:24px 0;text-align:center;font-size:48px}
+.badge-label{position:absolute;top:8px;left:8px;background:var(--accent);color:#fff;font-size:10px;font-weight:700;padding:3px 7px;border-radius:8px}
+.card-body{padding:10px 10px 12px;flex:1;display:flex;flex-direction:column;gap:4px}
+.card-name{font-size:14px;font-weight:600;line-height:1.3}
+.card-desc{font-size:11px;color:var(--text3);line-height:1.4;flex:1}
+.card-price{font-size:15px;font-weight:700;color:var(--accent);margin-top:4px}
+.card-foot{padding:0 10px 12px;display:flex;align-items:center;justify-content:space-between}
+.add-btn{background:var(--accent);border:none;border-radius:10px;color:#fff;font-size:13px;font-weight:700;padding:8px 16px;cursor:pointer;transition:all .15s;white-space:nowrap}
+.add-btn:active{transform:scale(.93)}
+.qty-ctrl{display:flex;align-items:center;gap:6px}
+.qty-btn{background:var(--bg3);border:none;border-radius:8px;width:30px;height:30px;color:var(--text);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .15s}
+.qty-btn:active{background:var(--accent)}
+.qty-num{font-size:15px;font-weight:700;min-width:18px;text-align:center}
+
+/* BOTTOM BAR */
+.bottom-bar{position:fixed;bottom:0;left:0;right:0;z-index:99;padding:12px 16px;background:linear-gradient(to top,var(--bg) 60%,transparent);display:none}
+.bottom-bar.show{display:block}
+.bottom-btn{width:100%;background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;border-radius:14px;color:#fff;font-size:16px;font-weight:700;padding:16px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;transition:transform .15s,opacity .15s;box-shadow:0 4px 20px rgba(255,107,53,.4)}
+.bottom-btn:active{transform:scale(.98)}
+.bottom-btn .left{display:flex;align-items:center;gap:8px}
+.bottom-btn .cnt{background:rgba(255,255,255,.25);border-radius:8px;padding:2px 8px;font-size:13px}
+
+/* BACK BTN */
+.back-btn{background:none;border:none;color:var(--accent);font-size:15px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:4px;padding:0}
+
+/* CART PAGE */
+.cart-header{padding:14px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px}
+.cart-title{font-size:18px;font-weight:700}
+.cart-list{padding:12px 16px;display:flex;flex-direction:column;gap:10px;flex:1}
+.cart-item{background:var(--card);border-radius:var(--radius);border:1px solid var(--border);padding:12px;display:flex;gap:12px;align-items:center}
+.ci-emoji{font-size:36px;flex-shrink:0}
+.ci-info{flex:1;min-width:0}
+.ci-name{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ci-price{font-size:13px;color:var(--accent);font-weight:600;margin-top:2px}
+.ci-right{display:flex;flex-direction:column;align-items:flex-end;gap:8px}
+.rm-btn{background:none;border:none;color:var(--text3);font-size:18px;cursor:pointer;line-height:1}
+.rm-btn:hover{color:#FF3B30}
+
+/* ORDER SUMMARY */
+.summary{margin:0 16px 16px;background:var(--card);border-radius:var(--radius);border:1px solid var(--border);padding:16px;display:flex;flex-direction:column;gap:10px}
+.sum-row{display:flex;justify-content:space-between;align-items:center;font-size:14px;color:var(--text2)}
+.sum-row.total{font-size:16px;font-weight:700;color:var(--text);padding-top:10px;border-top:1px solid var(--border)}
+.checkout-btn{margin:0 16px 32px;background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;border-radius:14px;color:#fff;font-size:16px;font-weight:700;padding:18px;cursor:pointer;transition:transform .15s;box-shadow:0 4px 20px rgba(255,107,53,.4)}
+.checkout-btn:active{transform:scale(.98)}
+.empty-cart{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;color:var(--text3);font-size:15px;padding-bottom:80px}
+.empty-cart .icon{font-size:64px}
+
+/* SUCCESS PAGE */
+#successPage{align-items:center;justify-content:center;gap:20px;text-align:center;padding:32px 24px}
+.check-wrap{width:90px;height:90px;background:linear-gradient(135deg,#30D158,#34C759);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:44px;animation:popIn .5s cubic-bezier(.175,.885,.32,1.275)}
+@keyframes popIn{from{transform:scale(0)}to{transform:scale(1)}}
+.success-title{font-size:24px;font-weight:700}
+.order-num{font-size:40px;font-weight:800;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.success-sub{color:var(--text2);font-size:15px;line-height:1.5}
+.time-badge{background:var(--bg3);border-radius:12px;padding:14px 24px;display:flex;align-items:center;gap:10px;font-size:15px;font-weight:600}
+.again-btn{width:100%;background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;border-radius:14px;color:#fff;font-size:16px;font-weight:700;padding:18px;cursor:pointer;margin-top:8px;transition:transform .15s;box-shadow:0 4px 20px rgba(255,107,53,.4)}
+.again-btn:active{transform:scale(.98)}
+</style>
+</head>
+<body>
+
+<!-- ═══════════ MENU PAGE ═══════════ -->
+<div id="menuPage" class="page active">
+  <div class="header">
+    <div class="logo">🍔 <span>Food City</span></div>
+    <button class="cart-btn" id="cartBtnTop" onclick="goCart()">
+      🛒
+      <span class="badge" id="cartBadge">0</span>
+    </button>
+  </div>
+  <div class="cats" id="cats"></div>
+  <div class="grid" id="grid"></div>
+  <div class="bottom-bar" id="bottomBar">
+    <button class="bottom-btn" onclick="goCart()">
+      <div class="left">🛒 Savatcha <span class="cnt" id="barCount">0</span></div>
+      <span id="barTotal">0 so'm</span>
+    </button>
+  </div>
+</div>
+
+<!-- ═══════════ CART PAGE ═══════════ -->
+<div id="cartPage" class="page">
+  <div class="cart-header">
+    <button class="back-btn" onclick="goMenu()">← Orqaga</button>
+    <span class="cart-title">🛒 Savatcha</span>
+  </div>
+  <div class="cart-list" id="cartList"></div>
+  <div class="summary" id="summary" style="display:none">
+    <div class="sum-row"><span>Mahsulotlar</span><span id="sumSubtotal"></span></div>
+    <div class="sum-row"><span>🚚 Yetkazib berish</span><span>15 000 so'm</span></div>
+    <div class="sum-row total"><span>⚡ Jami</span><span id="sumTotal"></span></div>
+  </div>
+  <button class="checkout-btn" id="checkoutBtn" onclick="checkout()" style="display:none">
+    ✅ Buyurtma berish
+  </button>
+</div>
+
+<!-- ═══════════ SUCCESS PAGE ═══════════ -->
+<div id="successPage" class="page">
+  <div class="check-wrap">✓</div>
+  <div class="success-title">Buyurtmangiz qabul qilindi!</div>
+  <div class="order-num" id="orderNum">#0000</div>
+  <div class="success-sub">Buyurtmangiz tayyorlanmoqda.<br>Yaqin orada yetkazib beramiz 🚀</div>
+  <div class="time-badge">⏱ Taxminiy vaqt: <b>30–45 daqiqa</b></div>
+  <button class="again-btn" onclick="goMenu()">🍔 Yana buyurtma berish</button>
+</div>
+
+<script>
+// ── Telegram WebApp Init ─────────────────────────────────────────────────────
+const twa = window.Telegram?.WebApp;
+if (twa) {
+  twa.ready();
+  twa.expand();
+  // Apply Telegram theme colors if available
+  const tp = twa.themeParams || {};
+  if (tp.bg_color)       document.documentElement.style.setProperty('--bg',    tp.bg_color);
+  if (tp.secondary_bg_color) document.documentElement.style.setProperty('--bg2', tp.secondary_bg_color);
+  if (tp.text_color)     document.documentElement.style.setProperty('--text',  tp.text_color);
+  if (tp.hint_color)     document.documentElement.style.setProperty('--text3', tp.hint_color);
+}
+
+// ── Menu Data ────────────────────────────────────────────────────────────────
+const menuItems = [
+  {id:1,  name:"Classic Burger",       desc:"Mol go'shti, pomidor, salat, sous",       price:28000, emoji:"🍔", category:"burger", badge:null},
+  {id:2,  name:"Double Smash Burger",  desc:"2x patty, cheddar, karamelized piyoz",    price:45000, emoji:"🍔", category:"burger", badge:"🔥 Hit"},
+  {id:3,  name:"Crispy Chicken",       desc:"Qovurilgan tovuq, coleslaw, sous",        price:32000, emoji:"🍗", category:"burger", badge:null},
+  {id:4,  name:"BBQ Bacon Burger",     desc:"Bacon, BBQ sous, jalapeno",               price:42000, emoji:"🥩", category:"burger", badge:"🌶 Achchiq"},
+  {id:5,  name:"Margarita",            desc:"Mozzarella, tomat sous, bazil",           price:42000, emoji:"🍕", category:"pizza",  badge:null},
+  {id:6,  name:"Pepperoni",            desc:"Pepperoni, mozzarella, oregano",          price:52000, emoji:"🍕", category:"pizza",  badge:"🔥 Hit"},
+  {id:7,  name:"BBQ Chicken Pizza",    desc:"Tovuq, BBQ, bolgar qalampir",             price:55000, emoji:"🍕", category:"pizza",  badge:null},
+  {id:8,  name:"4 Cheese",             desc:"Mozzarella, cheddar, parmesan, brie",    price:58000, emoji:"🍕", category:"pizza",  badge:"⭐ Premium"},
+  {id:9,  name:"Kartoshka Fri (L)",    desc:"Tuz, ketchup yoki sous bilan",            price:14000, emoji:"🍟", category:"snack",  badge:null},
+  {id:10, name:"Onion Rings",          desc:"Qovurilgan piyoz halqalari",              price:16000, emoji:"🧅", category:"snack",  badge:null},
+  {id:11, name:"Chicken Nuggets x6",   desc:"Tovuq nagetslari, sous bilan",            price:20000, emoji:"🍗", category:"snack",  badge:null},
+  {id:12, name:"Mozzarella Sticks",    desc:"6 dona, marinara sous",                   price:22000, emoji:"🧀", category:"snack",  badge:"⭐ Premium"},
+  {id:13, name:"Coca-Cola 0.5L",       desc:"Muzdek, gazlangan",                       price:9000,  emoji:"🥤", category:"drink",  badge:null},
+  {id:14, name:"Pepsi 0.5L",           desc:"Muzdek, gazlangan",                       price:8000,  emoji:"🥤", category:"drink",  badge:null},
+  {id:15, name:"Tabiiy Sharbat",       desc:"Olma, apelsin yoki gilos",                price:12000, emoji:"🧃", category:"drink",  badge:null},
+  {id:16, name:"Milkshake",            desc:"Shokolad, vanil yoki qulupnay",           price:18000, emoji:"🥛", category:"drink",  badge:"⭐ Premium"},
+  {id:17, name:"Kombo #1 — Classic",   desc:"Classic Burger + Fri (M) + Kola",        price:48000, emoji:"🎁", category:"combo",  badge:"💰 Tejamkor"},
+  {id:18, name:"Kombo #2 — Deluxe",   desc:"Double Smash + Fri (L) + Milkshake",     price:72000, emoji:"🎁", category:"combo",  badge:"💰 Tejamkor"},
+  {id:19, name:"Kombo #3 — Pizza Set", desc:"Pepperoni (L) + Nuggets + 2x Kola",     price:85000, emoji:"🎁", category:"combo",  badge:"🔥 Hit"},
+];
+
+const categories = [
+  {id:"all",    label:"Hammasi"},
+  {id:"burger", label:"🍔 Burgerlar"},
+  {id:"pizza",  label:"🍕 Pizzalar"},
+  {id:"snack",  label:"🍟 Sneklar"},
+  {id:"drink",  label:"🥤 Ichimliklar"},
+  {id:"combo",  label:"🎁 Kombolar"},
+];
+
+// ── State ────────────────────────────────────────────────────────────────────
+let cart = {}; // {id: quantity}
+let activeCat = "all";
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+const fmt = n => n.toLocaleString('uz-UZ').replace(/,/g,' ') + " so'm";
+const totalItems = () => Object.values(cart).reduce((a,b)=>a+b,0);
+const totalPrice = () => menuItems.reduce((s,m)=> s + (cart[m.id]||0)*m.price, 0);
+
+function updateBadge(){
+  const n = totalItems();
+  const b = document.getElementById('cartBadge');
+  b.textContent = n;
+  n > 0 ? b.classList.add('show') : b.classList.remove('show');
+
+  const bar = document.getElementById('bottomBar');
+  if(n > 0){
+    bar.classList.add('show');
+    document.getElementById('barCount').textContent = n;
+    document.getElementById('barTotal').textContent = fmt(totalPrice());
+  } else {
+    bar.classList.remove('show');
+  }
+}
+
+// ── Render Categories ─────────────────────────────────────────────────────────
+function renderCats(){
+  const el = document.getElementById('cats');
+  el.innerHTML = categories.map(c=>`
+    <button class="cat${activeCat===c.id?' active':''}" onclick="selectCat('${c.id}')">${c.label}</button>
+  `).join('');
+}
+
+function selectCat(id){
+  activeCat = id;
+  renderCats();
+  renderGrid();
+}
+
+// ── Render Grid ───────────────────────────────────────────────────────────────
+function renderGrid(){
+  const items = activeCat==='all' ? menuItems : menuItems.filter(m=>m.category===activeCat);
+  document.getElementById('grid').innerHTML = items.map(m=>{
+    const qty = cart[m.id]||0;
+    const ctrl = qty===0
+      ? `<button class="add-btn" onclick="addItem(${m.id})">+ Qo'shish</button>`
+      : `<div class="qty-ctrl">
+           <button class="qty-btn" onclick="dec(${m.id})">−</button>
+           <span class="qty-num">${qty}</span>
+           <button class="qty-btn" onclick="inc(${m.id})">+</button>
+         </div>`;
+    return `<div class="card" id="card-${m.id}">
+      <div class="card-top">
+        ${m.emoji}
+        ${m.badge?`<span class="badge-label">${m.badge}</span>`:''}
+      </div>
+      <div class="card-body">
+        <div class="card-name">${m.name}</div>
+        <div class="card-desc">${m.desc}</div>
+        <div class="card-price">${fmt(m.price)}</div>
+      </div>
+      <div class="card-foot">${ctrl}</div>
+    </div>`;
+  }).join('');
+}
+
+function refreshCard(id){
+  const m = menuItems.find(x=>x.id===id);
+  const qty = cart[id]||0;
+  const foot = document.querySelector(`#card-${id} .card-foot`);
+  if(!foot) return;
+  if(qty===0){
+    foot.innerHTML=`<button class="add-btn" onclick="addItem(${id})">+ Qo'shish</button>`;
+  } else {
+    foot.innerHTML=`<div class="qty-ctrl">
+      <button class="qty-btn" onclick="dec(${id})">−</button>
+      <span class="qty-num">${qty}</span>
+      <button class="qty-btn" onclick="inc(${id})">+</button>
+    </div>`;
+  }
+}
+
+function addItem(id){ cart[id]=1; refreshCard(id); updateBadge(); }
+function inc(id){ cart[id]=(cart[id]||0)+1; refreshCard(id); updateBadge(); }
+function dec(id){
+  if(!cart[id]) return;
+  cart[id]--;
+  if(cart[id]===0) delete cart[id];
+  refreshCard(id);
+  updateBadge();
+}
+
+// ── Cart Page ─────────────────────────────────────────────────────────────────
+function renderCart(){
+  const list = document.getElementById('cartList');
+  const ids = Object.keys(cart).map(Number).filter(id=>cart[id]>0);
+
+  if(ids.length===0){
+    list.innerHTML=`<div class="empty-cart"><div class="icon">🛒</div><span>Savatcha bo'sh</span></div>`;
+    document.getElementById('summary').style.display='none';
+    document.getElementById('checkoutBtn').style.display='none';
+    return;
+  }
+
+  list.innerHTML = ids.map(id=>{
+    const m = menuItems.find(x=>x.id===id);
+    const qty = cart[id];
+    return `<div class="cart-item">
+      <div class="ci-emoji">${m.emoji}</div>
+      <div class="ci-info">
+        <div class="ci-name">${m.name}</div>
+        <div class="ci-price">${fmt(m.price * qty)}</div>
+      </div>
+      <div class="ci-right">
+        <button class="rm-btn" onclick="removeItem(${id})">✕</button>
+        <div class="qty-ctrl">
+          <button class="qty-btn" onclick="cartDec(${id})">−</button>
+          <span class="qty-num">${qty}</span>
+          <button class="qty-btn" onclick="cartInc(${id})">+</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  const sub = totalPrice();
+  const delivery = 15000;
+  document.getElementById('sumSubtotal').textContent = fmt(sub);
+  document.getElementById('sumTotal').textContent = fmt(sub + delivery);
+  document.getElementById('summary').style.display='flex';
+  document.getElementById('checkoutBtn').style.display='block';
+}
+
+function removeItem(id){ delete cart[id]; updateBadge(); renderCart(); }
+function cartInc(id){ inc(id); renderCart(); }
+function cartDec(id){
+  if(!cart[id]) return;
+  cart[id]--;
+  if(cart[id]===0) delete cart[id];
+  updateBadge();
+  renderCart();
+}
+
+// ── Navigation ────────────────────────────────────────────────────────────────
+function show(pageId){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById(pageId).classList.add('active');
+  window.scrollTo(0,0);
+}
+
+function goCart(){ renderCart(); show('cartPage'); }
+function goMenu(){ show('menuPage'); renderGrid(); updateBadge(); }
+
+// ── Checkout ──────────────────────────────────────────────────────────────────
+function checkout(){
+  const ids = Object.keys(cart).map(Number).filter(id=>cart[id]>0);
+  if(ids.length===0) return;
+
+  const items = ids.map(id=>{
+    const m = menuItems.find(x=>x.id===id);
+    return {id:m.id, name:m.name, price:m.price, quantity:cart[id], emoji:m.emoji};
+  });
+
+  const subtotal = totalPrice();
+  const delivery = 15000;
+  const total = subtotal + delivery;
+  const orderNum = Math.floor(1000+Math.random()*9000);
+
+  const payload = {items, subtotal, delivery, total, orderNumber: orderNum};
+
+  if(twa && twa.sendData){
+    twa.sendData(JSON.stringify(payload));
+  } else {
+    // Fallback for browser testing
+    console.log('Order payload:', payload);
+  }
+
+  // Show success page
+  document.getElementById('orderNum').textContent = '#' + orderNum;
+  cart = {};
+  updateBadge();
+  show('successPage');
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+renderCats();
+renderGrid();
+updateBadge();
+</script>
+</body>
+</html>
