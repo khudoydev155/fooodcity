@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no"/>
+<title>Food City</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root {
+  --bg: #1C1C1E; --bg2: #2C2C2E; --bg3: #3A3A3C;
+  --accent: #FF6B35; --accent2: #FF8C42;
+  --text: #FFFFFF; --text2: #EBEBF5CC;
+  --radius: 16px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, sans-serif; -webkit-tap-highlight-color: transparent; }
+body { background: var(--bg); color: var(--text); padding-bottom: 80px; }
+
+/* SPINNER */
+#splash { position: fixed; inset: 0; background: var(--bg); z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: opacity 0.3s; }
+.spinner { border: 4px solid var(--bg3); border-top: 4px solid var(--accent); border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin-top: 20px; }
+@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+/* PAGES */
+.page { display: none; padding: 15px; animation: fadeIn 0.2s; }
+.page.active { display: block; }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+/* HEADER */
+.header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+.logo { font-size: 20px; font-weight: 700; color: var(--accent); }
+.actions { display: flex; gap: 10px; }
+.icon-btn { position: relative; width: 40px; height: 40px; border-radius: 12px; background: var(--bg2); display: flex; align-items: center; justify-content: center; font-size: 18px; cursor: pointer; }
+.badge { position: absolute; top: -5px; right: -5px; background: var(--accent); color: #fff; font-size: 10px; padding: 2px 6px; border-radius: 10px; font-weight: bold; }
+
+/* SEARCH & TABS */
+.search-bar { width: 100%; padding: 12px; border-radius: 12px; border: none; background: var(--bg2); color: var(--text); margin-bottom: 15px; outline: none; }
+.tabs { display: flex; overflow-x: auto; gap: 10px; padding-bottom: 10px; margin-bottom: 10px; scrollbar-width: none; }
+.tabs::-webkit-scrollbar { display: none; }
+.tab { white-space: nowrap; padding: 8px 16px; border-radius: 20px; background: var(--bg2); font-weight: 600; cursor: pointer; }
+.tab.active { background: var(--accent); }
+
+/* GRID */
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+.card { background: var(--bg2); border-radius: var(--radius); padding: 10px; position: relative; display: flex; flex-direction: column; }
+.card-img { width: 100%; height: 120px; object-fit: cover; border-radius: 12px; margin-bottom: 10px; background: var(--bg3); display:flex; align-items:center; justify-content:center; font-size:40px; }
+.card-badge { position: absolute; top: 15px; left: 15px; background: rgba(0,0,0,0.6); color: #fff; padding: 2px 6px; border-radius: 6px; font-size: 10px; font-weight: bold; }
+.card-fav { position: absolute; top: 15px; right: 15px; font-size: 20px; text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
+.card-title { font-weight: 600; font-size: 14px; margin-bottom: 5px; }
+.card-desc { font-size: 12px; color: var(--text2); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; margin-bottom: 10px; flex: 1; }
+.card-price { font-weight: 700; font-size: 14px; margin-bottom: 10px; }
+.card-actions { display: flex; justify-content: space-between; align-items: center; }
+.btn-add { background: var(--accent); color: #fff; border: none; padding: 6px 12px; border-radius: 8px; font-weight: 600; cursor: pointer; width: 100%; }
+.qty-controls { display: flex; align-items: center; justify-content: space-between; width: 100%; background: var(--bg3); border-radius: 8px; }
+.qty-btn { width: 30px; height: 30px; border: none; background: transparent; color: #fff; font-weight: bold; font-size: 16px; cursor: pointer; }
+
+/* CART BAR */
+.cart-bar { position: fixed; bottom: 80px; left: 15px; right: 15px; background: var(--accent); color: #fff; padding: 15px; border-radius: 12px; display: flex; justify-content: space-between; align-items: center; font-weight: bold; z-index: 90; cursor: pointer; box-shadow: 0 4px 15px rgba(255,107,53,0.4); }
+
+/* NAVBAR */
+.navbar { position: fixed; bottom: 0; left: 0; right: 0; background: var(--bg2); display: flex; justify-content: space-around; padding: 10px; padding-bottom: calc(10px + env(safe-area-inset-bottom)); z-index: 100; border-top: 1px solid var(--bg3); }
+.nav-item { display: flex; flex-direction: column; align-items: center; color: var(--text2); font-size: 10px; cursor: pointer; }
+.nav-item.active { color: var(--accent); }
+.nav-item div { font-size: 20px; margin-bottom: 2px; }
+
+/* CART PAGE */
+.cart-item { display: flex; gap: 15px; background: var(--bg2); padding: 15px; border-radius: 12px; margin-bottom: 10px; align-items: center; }
+.cart-item-img { width: 60px; height: 60px; border-radius: 8px; object-fit: cover; background: var(--bg3); display:flex; align-items:center; justify-content:center; font-size:24px; }
+.cart-item-info { flex: 1; }
+.cart-item-title { font-weight: 600; font-size: 14px; margin-bottom: 4px; }
+.cart-item-price { font-weight: 700; color: var(--accent); }
+.summary-card { background: var(--bg2); padding: 15px; border-radius: 12px; margin-top: 20px; }
+.summary-row { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 14px; }
+.summary-row.total { font-weight: bold; font-size: 18px; border-top: 1px solid var(--bg3); padding-top: 10px; margin-top: 5px; }
+
+.btn-primary { width: 100%; padding: 14px; background: var(--accent); color: #fff; border: none; border-radius: 12px; font-size: 16px; font-weight: bold; margin-top: 15px; cursor: pointer; }
+.btn-primary:disabled { opacity: 0.5; }
+.input-field { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid var(--bg3); background: var(--bg); color: var(--text); margin-bottom: 10px; }
+.form-row { display: flex; gap: 10px; margin-bottom: 10px; }
+
+.toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: var(--green, #30D158); color: #fff; padding: 10px 20px; border-radius: 20px; font-weight: bold; z-index: 1000; opacity: 0; transition: 0.3s; pointer-events: none; }
+
+</style>
+</head>
+<body>
+
+<div id="splash">
+  <div style="font-size: 40px; margin-bottom: 10px;">🍔</div>
+  <h2>Food City</h2>
+  <div class="spinner"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- MENU PAGE -->
+<div id="page-menu" class="page active">
+  <div class="header">
+    <div class="logo">Food City</div>
+    <div class="actions">
+      <div class="icon-btn" onclick="nav('wishlist')">❤️<span class="badge" id="wishlist-badge" style="display:none">0</span></div>
+    </div>
+  </div>
+  
+  <input type="text" class="search-bar" id="search" placeholder="Qidirish..." onkeyup="filterMenu()">
+  
+  <div class="tabs" id="tabs"></div>
+  <div class="grid" id="menu-grid"></div>
+</div>
+
+<!-- CART PAGE -->
+<div id="page-cart" class="page">
+  <div class="header">
+    <h2 onclick="nav('menu')" style="cursor:pointer">← Savatcha</h2>
+  </div>
+  <div id="cart-list"></div>
+  
+  <div class="summary-card" id="cart-summary" style="display:none">
+    <div class="form-row">
+      <input type="text" id="coupon-input" class="input-field" style="margin:0" placeholder="Kupon kodi">
+      <button class="btn-primary" style="margin:0; width:auto; padding: 0 15px;" onclick="applyCoupon()">Qo'llash</button>
+    </div>
+    <p id="coupon-msg" style="font-size:12px; margin-bottom:10px;"></p>
+    
+    <div id="points-section" style="display:none; margin-bottom:15px; border-bottom:1px solid var(--bg3); padding-bottom:10px;">
+      <p style="font-size:14px; margin-bottom:5px;">💎 Sizda <span id="points-balance">0</span> ball bor</p>
+      <label style="display:flex; align-items:center; gap:10px; font-size:14px;">
+        <input type="checkbox" id="use-points" onchange="renderCart()"> Ballardan foydalanish
+      </label>
+    </div>
+    
+    <button class="btn-primary" style="background:var(--bg3); margin-top:0; margin-bottom:15px;" onclick="requestLocation()">📍 Joylashuvni ulashish</button>
+    <input type="text" id="address-input" class="input-field" placeholder="Yoki manzilni kiriting *" oninput="checkOrderBtn()">
+    <textarea id="note-input" class="input-field" placeholder="Izoh (ixtiyoriy)"></textarea>
+    
+    <div class="summary-row"><span>Mahsulotlar:</span><span id="sum-subtotal">0</span></div>
+    <div class="summary-row"><span>Yetkazib berish:</span><span id="sum-delivery">15 000</span></div>
+    <div class="summary-row" id="row-discount" style="display:none; color:var(--green,#30D158);"><span>Kupon:</span><span id="sum-discount">0</span></div>
+    <div class="summary-row" id="row-points" style="display:none; color:#0A84FF;"><span>Ballar:</span><span id="sum-points">0</span></div>
+    <div class="summary-row total"><span>Jami:</span><span id="sum-total">0</span></div>
+    
+    <button class="btn-primary" id="btn-order" onclick="placeOrder()" disabled>Buyurtma berish</button>
+  </div>
+</div>
+
+<!-- ORDERS PAGE -->
+<div id="page-orders" class="page">
+  <h2>Buyurtmalarim</h2><br>
+  <div id="orders-list"></div>
+</div>
+
+<!-- WISHLIST PAGE -->
+<div id="page-wishlist" class="page">
+  <h2>Saqlanganlar</h2><br>
+  <div class="grid" id="wishlist-grid"></div>
+</div>
+
+<!-- PROFILE PAGE -->
+<div id="page-profile" class="page">
+  <h2>Profil</h2><br>
+  <div class="summary-card">
+    <h3 id="prof-name">Ism</h3>
+    <p id="prof-points" style="margin-top:10px; color:var(--accent);">💎 0 ball</p>
+    <hr style="border:0; border-top:1px solid var(--bg3); margin:15px 0;">
+    <p>Tilni tanlang:</p>
+    <select id="lang-select" class="input-field" style="margin-top:10px;" onchange="changeLang()">
+      <option value="uz">🇺🇿 O'zbekcha</option>
+      <option value="ru">🇷🇺 Русский</option>
+      <option value="en">🇬🇧 English</option>
+    </select>
+  </div>
+</div>
+
+<!-- CART BAR -->
+<div class="cart-bar" id="cart-bar" style="display:none" onclick="nav('cart')">
+  <span id="cart-count">0 ta mahsulot</span>
+  <span id="cart-total">0 so'm</span>
+  <span>→</span>
+</div>
+
+<!-- NAVBAR -->
+<div class="navbar">
+  <div class="nav-item active" onclick="nav('menu', this)"><div>🏠</div>Menu</div>
+  <div class="nav-item" onclick="nav('orders', this)"><div>📦</div>Buyurtmalar</div>
+  <div class="nav-item" onclick="nav('wishlist', this)"><div>❤️</div>Saqlanganlar</div>
+  <div class="nav-item" onclick="nav('profile', this)"><div>👤</div>Profil</div>
+</div>
+
+<script>
+// TELEGRAM INIT
+const tg = window.Telegram.WebApp;
+tg.expand();
+
+// ENV & SUPABASE (Anon key must be fetched/injected or directly set here)
+// For security, use only Anon Key here.
+const SUPABASE_URL = "YOUR_SUPABASE_URL_PLACEHOLDER";
+const SUPABASE_KEY = "YOUR_SUPABASE_ANON_KEY_PLACEHOLDER";
+
+// Try to load env dynamically if served from backend, else use fallback
+let supabase = null;
+fetch('/api/health').then(res=>res.json()).catch(()=>{}); // Wake up backend
+// Assuming env is properly handled, we initialize with Supabase JS SDK CDN
+// Note: as a pure HTML file, we need absolute URLs, but we rely on bot initData for user context.
+
+let user = tg.initDataUnsafe?.user || { id: 111111, first_name: "Test User", language_code: "uz" };
+let lang = localStorage.getItem('lang') || user.language_code || 'uz';
+if(!['uz','ru','en'].includes(lang)) lang = 'uz';
+
+// STATE
+let menuItems = [];
+let categories = [];
+let cart = {}; // itemId: {item, qty}
+let wishlist = JSON.parse(localStorage.getItem('wishlist') || '[]');
+let currentCat = 'all';
+let appliedCoupon = null; // {code, discount_value, type}
+let userPoints = 0;
+let deliveryFee = 15000;
+let lat=null, lon=null;
+
+// STRINGS (Simplified for demo)
+const strings = {
+  uz: { search: "Qidirish...", add: "Qo'shish", cart: "Savatcha" },
+  ru: { search: "Поиск...", add: "Добавить", cart: "Корзина" },
+  en: { search: "Search...", add: "Add", cart: "Cart" }
+};
+
+// INIT
+async function init() {
+  document.getElementById('search').placeholder = strings[lang].search;
+  document.getElementById('prof-name').innerText = user.first_name;
+  document.getElementById('lang-select').value = lang;
+  
+  updateWishlistBadge();
+  
+  // Fake fetch for demo until Supabase is linked properly by user
+  // Fetch from our backend API instead to bypass putting keys in HTML
+  try {
+    const res = await fetch('/api/admin/menu');
+    menuItems = await res.json();
+    
+    // Extract unique categories
+    const catMap = new Map();
+    menuItems.forEach(i => {
+      if(!catMap.has(i.category_id)) catMap.set(i.category_id, {id: i.category_id, name: 'Toifa ' + i.category_id});
+    });
+    categories = Array.from(catMap.values());
+    
+  } catch(e) {
+    // Fallback Mock Data
+    categories = [{id:'1', name:'Burgerlar'}, {id:'2', name:'Ichimliklar'}];
+    menuItems = [
+      {id:'1', category_id:'1', name_uz:'Klassik Burger', price:25000, emoji:'🍔', is_available:true},
+      {id:'2', category_id:'2', name_uz:'Kola', price:8000, emoji:'🥤', is_available:true}
+    ];
+  }
+  
+  renderTabs();
+  renderMenu();
+  
+  setTimeout(() => {
+    document.getElementById('splash').style.opacity = '0';
+    setTimeout(()=> document.getElementById('splash').style.display = 'none', 300);
+  }, 800);
+}
+
+// RENDER MENU
+function renderTabs() {
+  const tabs = document.getElementById('tabs');
+  tabs.innerHTML = `<div class="tab active" onclick="setCat('all', this)">Hammasi</div>`;
+  categories.forEach(c => {
+    tabs.innerHTML += `<div class="tab" onclick="setCat('${c.id}', this)">${c.name_uz || c.name}</div>`;
+  });
+}
+
+function setCat(id, el) {
+  currentCat = id;
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  renderMenu();
+}
+
+function filterMenu() {
+  renderMenu(document.getElementById('search').value.toLowerCase());
+}
+
+function renderMenu(query = '') {
+  const grid = document.getElementById('menu-grid');
+  grid.innerHTML = '';
+  
+  let filtered = menuItems.filter(i => {
+    if(currentCat !== 'all' && i.category_id !== currentCat) return false;
+    if(query && !(i.name_uz||'').toLowerCase().includes(query)) return false;
+    return true;
+  });
+  
+  filtered.forEach(i => {
+    const qty = cart[i.id]?.qty || 0;
+    const isFav = wishlist.includes(i.id);
+    const img = i.image_url ? `<img src="${i.image_url}" class="card-img">` : `<div class="card-img">${i.emoji||'🍽'}</div>`;
+    const name = i[`name_${lang}`] || i.name_uz;
+    const desc = i[`description_${lang}`] || '';
+    
+    let actionHtml = '';
+    if(!i.is_available) {
+      actionHtml = `<div style="color:var(--red); font-size:12px; font-weight:bold;">Mavjud emas</div>`;
+    } else if(qty === 0) {
+      actionHtml = `<button class="btn-add" onclick="addCart('${i.id}')">${strings[lang].add}</button>`;
+    } else {
+      actionHtml = `
+        <div class="qty-controls">
+          <button class="qty-btn" onclick="updateQty('${i.id}', -1)">-</button>
+          <span>${qty}</span>
+          <button class="qty-btn" onclick="updateQty('${i.id}', 1)">+</button>
+        </div>
+      `;
+    }
+    
+    grid.innerHTML += `
+      <div class="card">
+        ${img}
+        ${i.badge ? `<div class="card-badge">${i.badge}</div>` : ''}
+        <div class="card-fav" onclick="toggleFav('${i.id}')">${isFav ? '❤️' : '🤍'}</div>
+        <div class="card-title">${name}</div>
+        <div class="card-desc">${desc}</div>
+        <div class="card-price">${i.price.toLocaleString()} so'm</div>
+        <div class="card-actions">${actionHtml}</div>
+      </div>
+    `;
+  });
+}
+
+// WISHLIST
+function toggleFav(id) {
+  if(wishlist.includes(id)) {
+    wishlist = wishlist.filter(x => x !== id);
+  } else {
+    wishlist.push(id);
+    showToast("Saqlandi");
+  }
+  localStorage.setItem('wishlist', JSON.stringify(wishlist));
+  updateWishlistBadge();
+  renderMenu(document.getElementById('search').value);
+  if(document.getElementById('page-wishlist').classList.contains('active')) renderWishlist();
+}
+
+function updateWishlistBadge() {
+  const b = document.getElementById('wishlist-badge');
+  if(wishlist.length > 0) { b.style.display = 'block'; b.innerText = wishlist.length; }
+  else b.style.display = 'none';
+}
+
+function renderWishlist() {
+  const grid = document.getElementById('wishlist-grid');
+  grid.innerHTML = '';
+  const items = menuItems.filter(i => wishlist.includes(i.id));
+  if(items.length===0) grid.innerHTML = "<p>Bo'sh</p>";
+  // re-use card rendering logic... (simplified here)
+  items.forEach(i => {
+    const img = i.image_url ? `<img src="${i.image_url}" class="card-img" style="height:80px">` : `<div class="card-img" style="height:80px">${i.emoji||'🍽'}</div>`;
+    grid.innerHTML += `
+      <div class="card" onclick="nav('menu')">
+        ${img}
+        <div class="card-title">${i.name_uz}</div>
+        <div class="card-price">${i.price.toLocaleString()} so'm</div>
+      </div>
+    `;
+  });
+}
+
+// CART
+function addCart(id) {
+  const item = menuItems.find(x => x.id === id);
+  cart[id] = { item, qty: 1 };
+  updateCartGlobal();
+  tg.HapticFeedback.impactOccurred('light');
+}
+
+function updateQty(id, delta) {
+  if(!cart[id]) return;
+  cart[id].qty += delta;
+  if(cart[id].qty <= 0) delete cart[id];
+  updateCartGlobal();
+  tg.HapticFeedback.selectionChanged();
+}
+
+function updateCartGlobal() {
+  renderMenu(document.getElementById('search').value);
+  renderCart();
+  
+  let count = 0, total = 0;
+  Object.values(cart).forEach(c => { count += c.qty; total += c.qty * c.item.price; });
+  
+  const bar = document.getElementById('cart-bar');
+  if(count > 0) {
+    bar.style.display = 'flex';
+    document.getElementById('cart-count').innerText = `${count} ta`;
+    document.getElementById('cart-total').innerText = `${total.toLocaleString()} so'm`;
+  } else {
+    bar.style.display = 'none';
+  }
+}
+
+function renderCart() {
+  const list = document.getElementById('cart-list');
+  const sumCard = document.getElementById('cart-summary');
+  list.innerHTML = '';
+  
+  const items = Object.values(cart);
+  if(items.length === 0) {
+    list.innerHTML = `<div style="text-align:center; padding:50px; color:var(--text2)">Savatcha bo'sh 😔</div>`;
+    sumCard.style.display = 'none';
+    return;
+  }
+  
+  sumCard.style.display = 'block';
+  let subtotal = 0;
+  
+  items.forEach(c => {
+    subtotal += c.qty * c.item.price;
+    const name = c.item[`name_${lang}`] || c.item.name_uz;
+    const img = c.item.image_url ? `<img src="${c.item.image_url}" class="cart-item-img">` : `<div class="cart-item-img">${c.item.emoji||'🍽'}</div>`;
+    list.innerHTML += `
+      <div class="cart-item">
+        ${img}
+        <div class="cart-item-info">
+          <div class="cart-item-title">${name}</div>
+          <div class="cart-item-price">${c.item.price.toLocaleString()} so'm</div>
+        </div>
+        <div class="qty-controls" style="width:100px">
+          <button class="qty-btn" onclick="updateQty('${c.item.id}', -1)">-</button>
+          <span>${c.qty}</span>
+          <button class="qty-btn" onclick="updateQty('${c.item.id}', 1)">+</button>
+        </div>
+      </div>
+    `;
+  });
+  
+  document.getElementById('sum-subtotal').innerText = subtotal.toLocaleString();
+  
+  let discount = 0;
+  if(appliedCoupon) {
+    if(appliedCoupon.discount_type === 'percent') discount = subtotal * (appliedCoupon.discount_value/100);
+    else discount = appliedCoupon.discount_value;
+    document.getElementById('row-discount').style.display = 'flex';
+    document.getElementById('sum-discount').innerText = '-' + discount.toLocaleString();
+  } else {
+    document.getElementById('row-discount').style.display = 'none';
+  }
+  
+  let pointsUsed = 0;
+  if(document.getElementById('use-points')?.checked) {
+    // Max 30% of subtotal
+    const maxVal = subtotal * 0.3;
+    const userVal = userPoints * 10; // 1 point = 10 UZS
+    pointsUsed = Math.min(maxVal, userVal);
+    document.getElementById('row-points').style.display = 'flex';
+    document.getElementById('sum-points').innerText = '-' + pointsUsed.toLocaleString();
+  } else {
+    document.getElementById('row-points').style.display = 'none';
+  }
+  
+  const total = subtotal + deliveryFee - discount - pointsUsed;
+  document.getElementById('sum-total').innerText = total.toLocaleString() + " so'm";
+  checkOrderBtn();
+}
+
+async function applyCoupon() {
+  const code = document.getElementById('coupon-input').value;
+  if(!code) return;
+  const subtotal = Object.values(cart).reduce((s, c) => s + c.qty * c.item.price, 0);
+  
+  // Fake API call to backend
+  try {
+    const res = await fetch('/api/coupon/validate', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({code, user_id: user.id, subtotal})
+    });
+    const data = await res.json();
+    if(data.valid) {
+      appliedCoupon = data.coupon;
+      document.getElementById('coupon-msg').innerText = '✅ Kupon qabul qilindi!';
+      document.getElementById('coupon-msg').style.color = 'var(--green)';
+      renderCart();
+    } else {
+      document.getElementById('coupon-msg').innerText = '❌ ' + data.message;
+      document.getElementById('coupon-msg').style.color = 'var(--red)';
+    }
+  } catch(e) {
+    showToast("Xatolik");
+  }
+}
+
+function requestLocation() {
+  tg.requestLocation();
+}
+tg.onEvent('locationManagerUpdated', function() {
+  // Logic to handle location
+  showToast("Joylashuv olindi");
+  document.getElementById('address-input').value = "Geolokatsiya orqali manzil";
+  checkOrderBtn();
+});
+
+function checkOrderBtn() {
+  const btn = document.getElementById('btn-order');
+  const addr = document.getElementById('address-input').value;
+  btn.disabled = !(addr.length > 5 && Object.keys(cart).length > 0);
+}
+
+function placeOrder() {
+  document.getElementById('btn-order').disabled = true;
+  document.getElementById('btn-order').innerText = 'Kuting...';
+  
+  const items = Object.values(cart).map(c => ({
+    id: c.item.id,
+    name: c.item.name_uz,
+    qty: c.qty,
+    price: c.item.price
+  }));
+  
+  const subtotal = items.reduce((s,i) => s + i.price * i.qty, 0);
+  let discount = 0;
+  if(appliedCoupon) discount = appliedCoupon.discount_type === 'percent' ? subtotal*(appliedCoupon.discount_value/100) : appliedCoupon.discount_value;
+  
+  let pointsUsed = 0;
+  if(document.getElementById('use-points')?.checked) {
+    const maxVal = subtotal * 0.3;
+    pointsUsed = Math.min(maxVal, userPoints * 10);
+  }
+  
+  const payload = {
+    items,
+    subtotal,
+    delivery_fee: deliveryFee,
+    discount,
+    loyalty_points_used: pointsUsed,
+    total: subtotal + deliveryFee - discount - pointsUsed,
+    coupon_code: appliedCoupon ? appliedCoupon.code : null,
+    delivery_address: document.getElementById('address-input').value,
+    note: document.getElementById('note-input').value,
+    language: lang,
+    location: lat ? {lat, lon} : null
+  };
+  
+  tg.sendData(JSON.stringify(payload));
+  tg.close();
+}
+
+// UTILS
+function nav(page, el=null) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-' + page).classList.add('active');
+  if(el) {
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    el.classList.add('active');
+  }
+  window.scrollTo(0,0);
+  
+  if(page === 'wishlist') renderWishlist();
+  if(page === 'orders') fetchOrders();
+}
+
+async function fetchOrders() {
+  const list = document.getElementById('orders-list');
+  list.innerHTML = '<div class="spinner"></div>';
+  try {
+    const res = await fetch(`/api/user/orders?user_id=${user.id}`);
+    const data = await res.json();
+    list.innerHTML = '';
+    if(data.length===0) list.innerHTML = "<p>Bo'sh</p>";
+    data.forEach(o => {
+      list.innerHTML += `
+        <div class="cart-item" style="flex-direction:column; align-items:flex-start;">
+          <div style="width:100%; display:flex; justify-content:space-between">
+            <b>${o.id}</b>
+            <span style="color:var(--accent)">${o.status}</span>
+          </div>
+          <div style="font-size:12px; color:var(--text2)">${new Date(o.created_at).toLocaleString()}</div>
+          <div style="font-weight:bold; margin-top:5px;">${o.total.toLocaleString()} so'm</div>
+        </div>
+      `;
+    });
+  } catch(e) {
+    list.innerHTML = "<p>Xatolik</p>";
+  }
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.innerText = msg;
+  t.style.opacity = '1';
+  t.style.top = '40px';
+  setTimeout(() => { t.style.opacity = '0'; t.style.top = '20px'; }, 2000);
+}
+
+function changeLang() {
+  lang = document.getElementById('lang-select').value;
+  localStorage.setItem('lang', lang);
+  showToast("Til o'zgardi / Язык изменен / Language changed");
+  // Ideally trigger re-render
+}
+
+init();
+</script>
+</body>
+</html>

@@ -1,0 +1,21 @@
+{
+  "welcome": "Здравствуйте! 👋 Добро пожаловать в Food City!",
+  "choose_language": "Выберите язык:",
+  "menu_button": "🍽 Открыть меню",
+  "order_confirmed": "✅ Ваш заказ принят!",
+  "order_status_new": "🆕 Новый",
+  "order_status_confirmed": "✅ Подтвержден",
+  "order_status_cooking": "👨‍🍳 Готовится",
+  "order_status_delivering": "🛵 В пути",
+  "order_status_delivered": "✅ Доставлен",
+  "order_status_cancelled": "❌ Отменен",
+  "points_earned": "🎁 +{points} баллов получено!",
+  "points_balance": "💎 Ваш баланс: {points} баллов",
+  "coupon_valid": "✅ Купон применен! -{discount}",
+  "coupon_invalid": "❌ Купон недействителен или просрочен",
+  "profile_info": "👤 {name}\n📦 Заказы: {orders}\n💰 Всего: {spent}\n💎 Баллы: {points}",
+  "blocked": "Вы заблокированы.",
+  "no_permission": "Нет доступа",
+  "not_admin": "Вы не админ.",
+  "new_food_added": "Добавлено новое блюдо!"
+}
