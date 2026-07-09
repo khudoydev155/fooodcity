@@ -18,7 +18,7 @@ class Settings(BaseSettings):
     # ── Admin ──────────────────────────────────────────────────
     ADMIN_CHAT_ID: int = 0
     SUPERADMIN_IDS: List[int] = []
-    ADMIN_PIN: str = "123456"
+    ADMIN_PIN: str = "111111"
 
     # ── Business Rules ─────────────────────────────────────────
     LOYALTY_POINTS_PER_ORDER: int = 10
