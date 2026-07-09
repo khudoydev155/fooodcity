@@ -1,0 +1,21 @@
+{
+  "welcome": "Hello! 👋 Welcome to Food City!",
+  "choose_language": "Choose language:",
+  "menu_button": "🍽 View Menu",
+  "order_confirmed": "✅ Your order is confirmed!",
+  "order_status_new": "🆕 New",
+  "order_status_confirmed": "✅ Confirmed",
+  "order_status_cooking": "👨‍🍳 Cooking",
+  "order_status_delivering": "🛵 Delivering",
+  "order_status_delivered": "✅ Delivered",
+  "order_status_cancelled": "❌ Cancelled",
+  "points_earned": "🎁 +{points} points earned!",
+  "points_balance": "💎 Your balance: {points} points",
+  "coupon_valid": "✅ Coupon applied! -{discount}",
+  "coupon_invalid": "❌ Coupon invalid or expired",
+  "profile_info": "👤 {name}\n📦 Orders: {orders}\n💰 Spent: {spent}\n💎 Points: {points}",
+  "blocked": "You are blocked.",
+  "no_permission": "No permission",
+  "not_admin": "You are not an admin.",
+  "new_food_added": "New food item added!"
+}

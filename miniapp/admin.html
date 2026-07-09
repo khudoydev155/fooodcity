@@ -1,0 +1,1831 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Food City | Admin Management</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- Flatpickr for Date Selection -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/dark.css">
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+  <script src="https://npmcdn.com/flatpickr/dist/l10n/uz.js"></script>
+
+  <!-- Chart.js for Analytics -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- SheetJS for Excel Export -->
+  <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+
+  <style>
+    :root {
+      --primary: #FF6B00;
+      --primary-hover: #E66000;
+      --bg: #1A1A2E;
+      --card-bg: #16213E;
+      --sidebar-bg: #0F3460;
+      --text: #E94560; /* Using accent for some text highlights */
+      --white: #FFFFFF;
+      --gray: #94A3B8;
+      --border: #2E3A59;
+      --success: #10B981;
+      --error: #EF4444;
+      --warning: #F59E0B;
+      --info: #3B82F6;
+      --purple: #8B5CF6;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Inter', sans-serif;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--white);
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* LOGIN PAGE */
+    #login-page {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      background: radial-gradient(circle at center, #1A1A2E 0%, #0F0F1B 100%);
+    }
+
+    .login-card {
+      background: var(--card-bg);
+      padding: 3rem;
+      border-radius: 1.5rem;
+      text-align: center;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+      border: 1px solid var(--border);
+      width: 100%;
+      max-width: 400px;
+      animation: fadeIn 0.5s ease-out;
+    }
+
+    .login-logo {
+      font-size: 4rem;
+      margin-bottom: 1rem;
+    }
+
+    .login-title {
+      font-size: 1.8rem;
+      font-weight: 700;
+      color: var(--primary);
+      margin-bottom: 0.5rem;
+    }
+
+    .login-subtitle {
+      color: var(--gray);
+      margin-bottom: 2.5rem;
+      font-size: 0.9rem;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* MAIN APP LAYOUT */
+    #app {
+      display: none; /* Shown after auth */
+      height: 100vh;
+      grid-template-columns: 260px 1fr;
+    }
+
+    .sidebar {
+      background-color: var(--card-bg);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      padding: 1.5rem;
+      z-index: 100;
+    }
+
+    .sidebar-logo {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--primary);
+      margin-bottom: 2.5rem;
+      padding: 0 0.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .nav-list {
+      list-style: none;
+      flex-grow: 1;
+    }
+
+    .nav-item {
+      padding: 0.75rem 1rem;
+      border-radius: 0.75rem;
+      cursor: pointer;
+      color: var(--gray);
+      margin-bottom: 0.5rem;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      transition: all 0.2s;
+      font-weight: 500;
+    }
+
+    .nav-item:hover {
+      background-color: rgba(255, 107, 0, 0.1);
+      color: var(--primary);
+    }
+
+    .nav-item.active {
+      background-color: var(--primary);
+      color: var(--white);
+    }
+
+    .logout-btn {
+      margin-top: auto;
+      color: var(--error);
+      border: 1px solid transparent;
+    }
+    
+    .logout-btn:hover {
+      background-color: rgba(239, 68, 68, 0.1);
+      border-color: rgba(239, 68, 68, 0.2);
+      color: var(--error);
+    }
+
+    .main-content {
+      padding: 2rem;
+      overflow-y: auto;
+      background-color: var(--bg);
+    }
+
+    /* TYPOGRAPHY & BUTTONS */
+    .page-title {
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin-bottom: 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .btn {
+      padding: 0.6rem 1.2rem;
+      border-radius: 0.5rem;
+      border: none;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      transition: all 0.2s;
+      font-size: 0.9rem;
+    }
+
+    .btn-primary { background: var(--primary); color: white; }
+    .btn-primary:hover { background: var(--primary-hover); }
+    .btn-secondary { background: var(--border); color: var(--white); }
+    .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--gray); }
+    .btn-danger { background: var(--error); color: white; }
+
+    /* DASHBOARD CARDS */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+    }
+
+    .stat-card {
+      background: var(--card-bg);
+      padding: 1.5rem;
+      border-radius: 1rem;
+      border: 1px solid var(--border);
+    }
+
+    .stat-label {
+      color: var(--gray);
+      font-size: 0.85rem;
+      margin-bottom: 0.5rem;
+      display: block;
+    }
+
+    .stat-value {
+      font-size: 1.75rem;
+      font-weight: 700;
+      display: flex;
+      align-items: baseline;
+      gap: 0.5rem;
+    }
+
+    .stat-trend {
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
+    .trend-up { color: var(--success); }
+    .trend-down { color: var(--error); }
+
+    /* TABLES */
+    .table-container {
+      background: var(--card-bg);
+      border-radius: 1rem;
+      border: 1px solid var(--border);
+      overflow: hidden;
+      margin-bottom: 2rem;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+    }
+
+    th {
+      background: rgba(255, 255, 255, 0.05);
+      padding: 1rem 1.5rem;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--gray);
+      border-bottom: 1px solid var(--border);
+    }
+
+    td {
+      padding: 1rem 1.5rem;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.9rem;
+    }
+
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(255, 255, 255, 0.02); }
+
+    /* BADGES */
+    .badge {
+      padding: 0.25rem 0.6rem;
+      border-radius: 2rem;
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .badge-new { background: rgba(255, 107, 0, 0.15); color: var(--primary); }
+    .badge-confirmed { background: rgba(59, 130, 246, 0.15); color: var(--info); }
+    .badge-cooking { background: rgba(245, 158, 11, 0.15); color: var(--warning); }
+    .badge-delivering { background: rgba(139, 92, 246, 0.15); color: var(--purple); }
+    .badge-delivered { background: rgba(16, 185, 129, 0.15); color: var(--success); }
+    .badge-cancelled { background: rgba(239, 68, 68, 0.15); color: var(--error); }
+
+    /* SKELETON */
+    .skeleton {
+      background: linear-gradient(90deg, var(--card-bg) 25%, #1F2A44 50%, var(--card-bg) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+      border-radius: 0.5rem;
+    }
+
+    @keyframes shimmer {
+      from { background-position: 200% 0; }
+      to { background-position: -200% 0; }
+    }
+
+    /* TOASTS */
+    #toast-container {
+      position: fixed;
+      top: 1.5rem;
+      right: 1.5rem;
+      z-index: 10000;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .toast {
+      padding: 1rem 1.5rem;
+      border-radius: 0.75rem;
+      color: white;
+      font-weight: 500;
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+      min-width: 250px;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      animation: slideInRight 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    }
+
+    @keyframes slideInRight {
+      from { transform: translateX(100%); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+
+    /* MODAL */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.7);
+      backdrop-filter: blur(4px);
+      z-index: 9000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+    }
+
+    .modal {
+      background: var(--card-bg);
+      width: 100%;
+      max-width: 600px;
+      border-radius: 1.5rem;
+      border: 1px solid var(--border);
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+      animation: modalSlideUp 0.3s ease-out;
+      display: flex;
+      flex-direction: column;
+      max-height: 90vh;
+    }
+
+    @keyframes modalSlideUp {
+      from { transform: translateY(50px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+
+    .modal-header {
+      padding: 1.5rem;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .modal-body {
+      padding: 1.5rem;
+      overflow-y: auto;
+    }
+
+    .modal-footer {
+      padding: 1.5rem;
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: flex-end;
+      gap: 1rem;
+    }
+
+    /* FORMS */
+    .form-group { margin-bottom: 1.25rem; }
+    .form-label { display: block; margin-bottom: 0.5rem; font-size: 0.85rem; color: var(--gray); font-weight: 500; }
+    .form-input, .form-select, .form-textarea {
+      width: 100%;
+      padding: 0.75rem 1rem;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 0.75rem;
+      color: white;
+      font-size: 0.95rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .form-input:focus { border-color: var(--primary); }
+    
+    /* MENU GRID */
+    .menu-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 1.5rem;
+    }
+
+    .menu-card {
+      background: var(--card-bg);
+      border-radius: 1rem;
+      border: 1px solid var(--border);
+      overflow: hidden;
+      transition: transform 0.2s;
+    }
+
+    .menu-card:hover { transform: translateY(-5px); }
+
+    .menu-img {
+      height: 180px;
+      width: 100%;
+      object-fit: cover;
+      background: linear-gradient(135deg, var(--sidebar-bg), var(--bg));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 4rem;
+    }
+
+    .menu-info { padding: 1.25rem; }
+    .menu-name { font-size: 1.1rem; font-weight: 700; margin-bottom: 0.25rem; }
+    .menu-cat { font-size: 0.75rem; color: var(--gray); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 1rem; }
+    .menu-price-row { display: flex; align-items: center; justify-content: space-between; }
+    .menu-price { font-weight: 700; color: var(--primary); font-size: 1.2rem; }
+
+    /* SWITCH */
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 44px;
+      height: 24px;
+    }
+
+    .switch input { opacity: 0; width: 0; height: 0; }
+
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background-color: var(--border);
+      transition: .4s;
+      border-radius: 24px;
+    }
+
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 18px; width: 18px;
+      left: 3px; bottom: 3px;
+      background-color: white;
+      transition: .4s;
+      border-radius: 50%;
+    }
+
+    input:checked + .slider { background-color: var(--success); }
+    input:checked + .slider:before { transform: translateX(20px); }
+
+    /* TABS */
+    .tabs { display: flex; gap: 1rem; border-bottom: 1px solid var(--border); margin-bottom: 1.5rem; overflow-x: auto; padding-bottom: 0.5rem; }
+    .tab { padding: 0.5rem 1rem; cursor: pointer; color: var(--gray); font-weight: 600; font-size: 0.9rem; border-bottom: 2px solid transparent; transition: all 0.2s; white-space: nowrap; }
+    .tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+
+    /* RESPONSIVE */
+    @media (max-width: 1024px) {
+      #app { grid-template-columns: 80px 1fr; }
+      .sidebar-logo span, .nav-item span { display: none; }
+      .sidebar { padding: 1rem 0.5rem; align-items: center; }
+      .nav-item { justify-content: center; width: 50px; height: 50px; padding: 0; }
+    }
+
+    @media (max-width: 768px) {
+      #app { grid-template-columns: 1fr; }
+      .sidebar { display: none; } /* Mobile side drawer logic needed for full prod */
+      .main-content { padding: 1rem; }
+    }
+    .login-tabs { display: flex; gap: 0.5rem; margin-bottom: 2rem; background: var(--bg); padding: 0.25rem; border-radius: 0.75rem; }
+    .login-tab-btn { flex: 1; padding: 0.6rem; border-radius: 0.6rem; border: none; background: transparent; color: var(--gray); cursor: pointer; font-weight: 600; font-size: 0.85rem; transition: all 0.2s; }
+    .login-tab-btn.active { background: var(--card-bg); color: var(--primary); box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2); }
+  </style>
+</head>
+<body>
+
+  <!-- TOASTS -->
+  <div id="toast-container"></div>
+
+  <!-- LOGIN PAGE -->
+  <section id="login-page">
+    <div class="login-card">
+      <div class="login-logo">🍔</div>
+      <h1 class="login-title">FOOOD CITY</h1>
+      <p class="login-subtitle">Restaurant Admin Management Panel</p>
+      
+      <div class="login-tabs">
+        <button id="telegram-tab" class="login-tab-btn active" onclick="switchLoginTab('telegram')">Telegram</button>
+        <button id="pin-tab" class="login-tab-btn" onclick="switchLoginTab('pin')">PIN Kod</button>
+      </div>
+
+      <div id="telegram-content" style="display: block;">
+        <div id="tg-widget-container">
+          <!-- Telegram Widget will be injected here -->
+          <script async src="https://telegram.org/js/telegram-widget.js?22"
+            data-telegram-login="foood_city_official_bot"
+            data-size="large"
+            data-radius="8"
+            data-onauth="onTelegramAuth(user)"
+            data-request-access="write">
+          </script>
+        </div>
+      </div>
+
+      <div id="pin-content" style="display: none;">
+        <div class="form-group">
+          <input type="password" id="admin-pin-input" class="form-input" placeholder="6 xonali PIN kod" maxlength="6" style="text-align: center; font-size: 1.5rem; letter-spacing: 0.5rem;">
+        </div>
+        <button class="btn btn-primary" onclick="onPinLogin()" style="width: 100%; justify-content: center; padding: 0.8rem;">Kirish</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- SPA MAIN APP -->
+  <main id="app">
+    <aside class="sidebar">
+      <div class="sidebar-logo">
+        <span>🍔</span> <span>Food City</span>
+      </div>
+      <ul class="nav-list">
+        <li class="nav-item active" data-page="dashboard">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+          <span>Dashboard</span>
+        </li>
+        <li class="nav-item" data-page="orders">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"></path><line x1="3" y1="6" x2="21" y2="6"></line><path d="M16 10a4 4 0 0 1-8 0"></path></svg>
+          <span>Buyurtmalar</span>
+        </li>
+        <li class="nav-item" data-page="menu">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"></path><path d="M7 2v20"></path><path d="M21 15V2v0a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"></path></svg>
+          <span>Menyu</span>
+        </li>
+        <li class="nav-item" data-page="users">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+          <span>Foydalanuvchilar</span>
+        </li>
+        <li class="nav-item" data-page="coupons">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5 5 15"></path><path d="M16 2 2 16"></path><path d="M22 17v3a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-3"></path><path d="M22 7V4a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v3"></path><circle cx="18" cy="6" r="1"></circle><circle cx="6" cy="18" r="1"></circle></svg>
+          <span>Kuponlar</span>
+        </li>
+        <li class="nav-item" data-page="broadcast">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"></path></svg>
+          <span>Broadcast</span>
+        </li>
+      </ul>
+      <div class="nav-item logout-btn" onclick="logout()">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+        <span>Chiqish</span>
+      </div>
+    </aside>
+
+    <section class="main-content" id="main-view">
+      <!-- Views injected here by JS -->
+    </section>
+  </main>
+
+  <!-- MODALS -->
+  <div class="modal-overlay" id="modal-overlay">
+    <div class="modal" id="modal">
+      <div class="modal-header">
+        <h3 id="modal-title">Modal Title</h3>
+        <button class="btn btn-outline" onclick="closeModal()" style="padding: 0.25rem 0.5rem;">✕</button>
+      </div>
+      <div class="modal-body" id="modal-body"></div>
+      <div class="modal-footer" id="modal-footer"></div>
+    </div>
+  </div>
+
+  <script>
+    const API_BASE = "https://worker-production-7c481.up.railway.app";
+    let state = {
+      currentPage: 'dashboard',
+      user: JSON.parse(sessionStorage.getItem('admin_user')) || null,
+      token: sessionStorage.getItem('admin_token') || null,
+      orders: [],
+      menu: [],
+      stats: null,
+      refreshInterval: null
+    };
+
+    // --- AUTHENTICATION ---
+    async function onTelegramAuth(user) {
+      showToast('Tekshirilmoqda...', 'info');
+      try {
+        const res = await fetch(`${API_BASE}/api/auth/verify`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(user)
+        });
+        const data = await res.json();
+        
+        if (data.valid && data.is_admin) {
+          sessionStorage.setItem('admin_token', data.token);
+          sessionStorage.setItem('admin_user', JSON.stringify(user));
+          state.token = data.token;
+          state.user = user;
+          initApp();
+          showToast('Xush kelibsiz!', 'success');
+        } else {
+          showToast(data.reason || 'Sizda admin ruxsati yo\'q!', 'error');
+        }
+      } catch (err) {
+        showToast('Server bilan aloqa uzildi', 'error');
+      }
+    }
+
+    function switchLoginTab(tab) {
+      const telegramTab = document.getElementById('telegram-tab');
+      const pinTab = document.getElementById('pin-tab');
+      const telegramContent = document.getElementById('telegram-content');
+      const pinContent = document.getElementById('pin-content');
+      
+      if(tab === 'telegram') {
+        telegramTab.classList.add('active');
+        pinTab.classList.remove('active');
+        telegramContent.style.display = 'block';
+        pinContent.style.display = 'none';
+      } else {
+        pinTab.classList.add('active');
+        telegramTab.classList.remove('active');
+        pinContent.style.display = 'block';
+        telegramContent.style.display = 'none';
+      }
+    }
+
+    async function onPinLogin() {
+      const pin = document.getElementById('admin-pin-input').value;
+      if (pin.length !== 6) return showToast('6 xonali PIN kod kiriting!', 'error');
+
+      showToast('Tekshirilmoqda...', 'info');
+      try {
+        const res = await fetch(`${API_BASE}/api/auth/pin`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ pin })
+        });
+        const data = await res.json();
+        
+        if (data.valid) {
+          sessionStorage.setItem('admin_token', data.token);
+          sessionStorage.setItem('admin_user', JSON.stringify({ first_name: 'Admin', id: 'pin' }));
+          state.token = data.token;
+          state.user = { first_name: 'Admin' };
+          initApp();
+          showToast('Xush kelibsiz!', 'success');
+        } else {
+          showToast(data.reason || 'Noto\'g\'ri PIN kod!', 'error');
+        }
+      } catch (err) {
+        showToast('Server bilan aloqa uzildi', 'error');
+      }
+    }
+
+    function logout() {
+      sessionStorage.clear();
+      window.location.reload();
+    }
+
+    // --- NAVIGATION / ROUTING ---
+    const routes = {
+      dashboard: renderDashboard,
+      orders: renderOrders,
+      menu: renderMenu,
+      users: renderUsers,
+      coupons: renderCoupons,
+      broadcast: renderBroadcast
+    };
+
+    function navigate(page) {
+      if (state.refreshInterval) {
+        clearInterval(state.refreshInterval);
+        state.refreshInterval = null;
+      }
+      
+      state.currentPage = page;
+      document.querySelectorAll('.nav-item').forEach(el => {
+        el.classList.toggle('active', el.dataset.page === page);
+      });
+      
+      routes[page]();
+    }
+
+    let currentStartDate = '';
+    let currentEndDate = '';
+    let revenueChartInstance = null;
+    let topItemsChartInstance = null;
+
+    function initDatePicker() {
+      flatpickr("#date-range-picker", {
+        mode: "range",
+        enableTime: true,
+        time_24hr: true,
+        dateFormat: "Y-m-d H:i",
+        locale: "uz",
+        onChange: function(selectedDates, dateStr, instance) {
+          if (selectedDates.length === 2) {
+            currentStartDate = selectedDates[0].toISOString();
+            currentEndDate = selectedDates[1].toISOString();
+            refreshDashboardData();
+          } else if (selectedDates.length === 0) {
+            currentStartDate = '';
+            currentEndDate = '';
+            refreshDashboardData();
+          }
+        }
+      });
+    }
+
+    function setDateFilter(type) {
+      const now = new Date();
+      let start = new Date();
+      let end = new Date();
+      
+      if (type === 'today') {
+        start.setHours(0,0,0,0);
+      } else if (type === 'yesterday') {
+        start.setDate(start.getDate() - 1);
+        start.setHours(0,0,0,0);
+        end.setDate(end.getDate() - 1);
+        end.setHours(23,59,59,999);
+      } else if (type === '7days') {
+        start.setDate(start.getDate() - 7);
+        start.setHours(0,0,0,0);
+      } else if (type === 'thisMonth') {
+        start.setDate(1);
+        start.setHours(0,0,0,0);
+      }
+
+      currentStartDate = start.toISOString();
+      currentEndDate = end.toISOString();
+      const picker = document.querySelector("#date-range-picker")?._flatpickr;
+      if(picker) picker.setDate([start, end]);
+      refreshDashboardData();
+    }
+
+    async function refreshDashboardData() {
+      await fetchStats();
+      await fetchDashboardOrders();
+      await renderAnalytics();
+    }
+
+    async function renderDashboard() {
+      const view = document.getElementById('main-view');
+      view.innerHTML = `
+        <div class="page-title" style="flex-wrap: wrap; gap: 1rem;">
+          <span>📈 Dashboard Analitika</span>
+          <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+            <button class="btn btn-outline sm" onclick="setDateFilter('today')">Bugun</button>
+            <button class="btn btn-outline sm" onclick="setDateFilter('yesterday')">Kecha</button>
+            <button class="btn btn-outline sm" onclick="setDateFilter('7days')">7 Kun</button>
+            <button class="btn btn-outline sm" onclick="setDateFilter('thisMonth')">Shu oy</button>
+            <input type="text" id="date-range-picker" class="form-input" style="width:100%; max-width:280px; padding:0.4rem 0.8rem; font-size:0.85rem;" placeholder="Vaqtni tanlang...">
+            <button class="btn btn-success" onclick="downloadExcel()" style="background: var(--success); color: white;">📥 Excel</button>
+          </div>
+        </div>
+        <div class="stats-grid" id="stats-container">
+          ${[1,2,3,4].map(() => `<div class="stat-card skeleton" style="height: 100px"></div>`).join('')}
+        </div>
+        
+        <div class="stats-grid" style="grid-template-columns: 2fr 1fr; margin-bottom: 2rem;">
+          <div class="stat-card">
+            <h3 style="font-size: 1rem; margin-bottom: 1rem; color: var(--gray)">Tushumlar Dinamikasi</h3>
+            <canvas id="revenueChart" style="max-height: 250px;"></canvas>
+          </div>
+          <div class="stat-card">
+            <h3 style="font-size: 1rem; margin-bottom: 1rem; color: var(--gray)">Top Mahsulotlar (Soni)</h3>
+            <canvas id="topItemsChart" style="max-height: 250px;"></canvas>
+          </div>
+        </div>
+
+        <div class="table-container">
+          <div style="padding: 1.5rem; border-bottom: 1px solid var(--border)">
+            <h3 style="font-size: 1rem">Jonli Faol Buyurtmalar</h3>
+          </div>
+          <div id="live-orders-container">
+            <div class="skeleton" style="height: 300px"></div>
+          </div>
+        </div>
+      `;
+
+      initDatePicker();
+      await refreshDashboardData();
+
+      state.refreshInterval = setInterval(() => {
+        fetchStats();
+        fetchDashboardOrders();
+      }, 15000);
+    }
+
+    function getTrendHtml(diff) {
+      if (diff > 0) return `<span class="stat-trend trend-up">↑ +${diff}%</span>`;
+      if (diff < 0) return `<span class="stat-trend trend-down">↓ ${diff}%</span>`;
+      return `<span class="stat-trend" style="color: var(--gray)">— 0%</span>`;
+    }
+
+    async function fetchStats() {
+      try {
+        let q = '';
+        if (currentStartDate) q += `?start_date=${encodeURIComponent(currentStartDate)}&end_date=${encodeURIComponent(currentEndDate)}`;
+        const res = await apiGet(`/api/admin/stats${q}`);
+        state.stats = res;
+        const grid = document.getElementById('stats-container');
+        if (!grid) return;
+
+        // Use standard structure plus returning %
+        grid.innerHTML = `
+          <div class="stat-card">
+            <span class="stat-label">Buyurtmalar Soni</span>
+            <div class="stat-value">${res.today?.orders || 0} ${getTrendHtml(res.today?.orders_diff || 0)}</div>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">Daromad</span>
+            <div class="stat-value">${(res.today?.revenue || 0).toLocaleString()} <span style="font-size: 0.8rem; margin-left: 4px; color: var(--gray)">sum</span> ${getTrendHtml(res.today?.revenue_diff || 0)}</div>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">Jami Foydalanuvchilar</span>
+            <div class="stat-value">${res.total_users || 0}</div>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">O'rtacha Chek</span>
+            <div class="stat-value">${Math.round((res.today?.revenue || 0) / (res.today?.orders || 1)).toLocaleString()} <span style="font-size: 0.8rem; margin-left: 4px; color: var(--gray)">sum</span></div>
+          </div>
+        `;
+      } catch (err) { console.error('Stats error', err); }
+    }
+
+    async function fetchDashboardOrders() {
+      try {
+        let q = '?status=new,confirmed,cooking,delivering&limit=15';
+        if (currentStartDate) q += `&start_date=${encodeURIComponent(currentStartDate)}&end_date=${encodeURIComponent(currentEndDate)}`;
+        
+        const orders = await apiGet(`/api/admin/orders${q}`);
+        const view = document.getElementById('live-orders-container');
+        if (!view) return;
+
+        let rows = orders.map(o => `
+          <tr onclick="showOrderDetail('${o.id}')" style="cursor: pointer">
+            <td style="font-weight: 600; color: var(--primary)">${o.id}</td>
+            <td>${o.users?.full_name || o.users?.username || 'Telegram Foydalanuvchisi'}</td>
+            <td>${o.items.length} ta mahsulot</td>
+            <td style="font-weight: 600">${o.total.toLocaleString()} sum</td>
+            <td><span class="badge badge-${o.status}">${o.status}</span></td>
+            <td style="color: var(--gray)">${formatTime(o.created_at)}</td>
+          </tr>
+        `).join('');
+
+        view.innerHTML = `
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Mijoz</th>
+                <th>Mahsulot</th>
+                <th>Jami</th>
+                <th>Status</th>
+                <th>Vaqt</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rows || '<tr><td colspan="6" style="text-align: center; padding: 2rem; color: var(--gray)">Faol buyurtmalar mavjud emas</td></tr>'}
+            </tbody>
+          </table>
+        `;
+      } catch (err) { console.error('Dashboard orders error', err); }
+    }
+
+    async function renderAnalytics() {
+      try {
+        let q = '';
+        if (currentStartDate) q += `?start_date=${encodeURIComponent(currentStartDate)}&end_date=${encodeURIComponent(currentEndDate)}`;
+        const data = await apiGet(`/api/admin/analytics${q}`);
+        
+        // Setup Returning Customers metric into the header or near stats
+        // We'll append it to the stats container if we want, or it's fine just in the analytics response.
+        const grid = document.getElementById('stats-container');
+        if (grid && grid.children.length === 4) {
+             grid.insertAdjacentHTML('beforeend', `
+             <div class="stat-card" style="grid-column: span 1;">
+               <span class="stat-label">Qayta Xarid Qilganlar</span>
+               <div class="stat-value">${data.returning_percent}% <span style="font-size: 0.8rem; margin-left: 4px; color: var(--gray)">mijozlar</span></div>
+             </div>
+             `);
+        } else if (grid && grid.children.length > 4) {
+             grid.lastElementChild.innerHTML = `
+               <span class="stat-label">Qayta Xarid Qilganlar</span>
+               <div class="stat-value">${data.returning_percent}% <span style="font-size: 0.8rem; margin-left: 4px; color: var(--gray)">mijozlar</span></div>
+             `;
+        }
+
+        Chart.defaults.color = '#94A3B8';
+        Chart.defaults.font.family = "'Inter', sans-serif";
+
+        // Line Chart
+        const ctxRev = document.getElementById('revenueChart');
+        if (ctxRev) {
+          if (revenueChartInstance) revenueChartInstance.destroy();
+          revenueChartInstance = new Chart(ctxRev, {
+            type: 'line',
+            data: {
+              labels: data.revenue_chart.labels,
+              datasets: [{
+                label: 'Daromad (sum)',
+                data: data.revenue_chart.data,
+                borderColor: '#FF6B00',
+                backgroundColor: 'rgba(255, 107, 0, 0.1)',
+                fill: true,
+                tension: 0.4
+              }]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: { legend: { display: false } },
+              scales: { y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' } }, x: { grid: { color: 'rgba(255,255,255,0.05)' } } }
+            }
+          });
+        }
+
+        // Donut Chart
+        const ctxTop = document.getElementById('topItemsChart');
+        if (ctxTop) {
+          if (topItemsChartInstance) topItemsChartInstance.destroy();
+          topItemsChartInstance = new Chart(ctxTop, {
+            type: 'doughnut',
+            data: {
+              labels: data.top_items_chart.labels,
+              datasets: [{
+                data: data.top_items_chart.data,
+                backgroundColor: ['#FF6B00', '#10B981', '#3B82F6', '#F59E0B', '#8B5CF6'],
+                borderWidth: 0
+              }]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: { legend: { position: 'right' } },
+              cutout: '70%'
+            }
+          });
+        }
+      } catch (e) { console.error('Analytics chart error', e); }
+    }
+
+    async function downloadExcel() {
+      try {
+        showToast("Yuklanmoqda...", "info");
+        let q = '?limit=1000'; // download up to 1000 orders
+        if (currentStartDate) q += `&start_date=${encodeURIComponent(currentStartDate)}&end_date=${encodeURIComponent(currentEndDate)}`;
+        
+        const orders = await apiGet(`/api/admin/orders${q}`);
+        if (!orders || orders.length === 0) return showToast("Eksport qilish uchun ma'lumot yo'q!", "error");
+
+        const excelData = orders.map(o => {
+          const itemsStr = (o.items || []).map(i => `${i.name_uz} (x${i.qty})`).join(', ');
+          return {
+            "Buyurtma ID": o.id,
+            "Sana": new Date(o.created_at).toLocaleString('uz-UZ'),
+            "Mijoz Ismi": o.users?.full_name || o.users?.username || "Telegram Foydalanuvchisi",
+            "Mijoz Telefon": o.delivery_address || "",
+            "Tarkibi": itemsStr,
+            "Jami Summa": o.total,
+            "Status": o.status
+          };
+        });
+
+        const ws = XLSX.utils.json_to_sheet(excelData);
+        
+        // Auto-size columns slightly
+        const wscols = [ {wch:15}, {wch:20}, {wch:25}, {wch:25}, {wch:40}, {wch:15}, {wch:15} ];
+        ws['!cols'] = wscols;
+
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Buyurtmalar");
+        XLSX.writeFile(wb, `FoodCity_Hisobot_${new Date().toISOString().split('T')[0]}.xlsx`);
+        showToast("Muvaffaqiyatli yuklandi!", "success");
+      } catch (e) {
+        console.error(e);
+        showToast("Xatolik yuz berdi", "error");
+      }
+    }
+
+    // --- ORDERS PAGE ---
+    async function renderOrders() {
+      const view = document.getElementById('main-view');
+      view.innerHTML = `
+        <div class="page-title">
+          <span>📦 Buyurtmalar</span>
+          <input type="text" class="form-input" style="width: 250px" placeholder="ID yoki ism bo'yicha qidirish..." oninput="searchOrders(this.value)">
+        </div>
+        <div class="tabs">
+          <div class="tab active" onclick="filterOrders(this, '')">Hammasi</div>
+          <div class="tab" onclick="filterOrders(this, 'new')">Yangi</div>
+          <div class="tab" onclick="filterOrders(this, 'confirmed')">Tasdiqlangan</div>
+          <div class="tab" onclick="filterOrders(this, 'cooking')">Tayyorlanmoqda</div>
+          <div class="tab" onclick="filterOrders(this, 'delivering')">Yo'lda</div>
+          <div class="tab" onclick="filterOrders(this, 'delivered')">Yetkazildi</div>
+          <div class="tab" onclick="filterOrders(this, 'cancelled')">Bekor</div>
+        </div>
+        <div class="table-container" id="orders-table-container">
+          ${[1,2,3,4,5].map(() => `<div class="skeleton" style="height: 60px; margin: 10px"></div>`).join('')}
+        </div>
+      `;
+      loadOrders();
+    }
+
+    async function loadOrders(status = '', query = '') {
+      const container = document.getElementById('orders-table-container');
+      try {
+        const orders = await apiGet(`/api/admin/orders?status=${status}&search=${query}`);
+        let rows = orders.map(o => `
+          <tr onclick="showOrderDetail('${o.id}')" style="cursor: pointer">
+            <td style="color: var(--primary)">${o.id}</td>
+            <td>${o.users?.full_name || 'Noma\'lum'}</td>
+            <td>${o.items.length} ta mahsulot</td>
+            <td>${o.total.toLocaleString()} sum</td>
+            <td><span class="badge badge-${o.status}">${o.status}</span></td>
+            <td>${formatTime(o.created_at)}</td>
+            <td><button class="btn btn-outline sm">Detail</button></td>
+          </tr>
+        `).join('');
+
+        container.innerHTML = `
+          <table>
+            <thead><tr><th>ID</th><th>Mijoz</th><th>Mahsulot</th><th>Jami</th><th>Status</th><th>Vaqt</th><th></th></tr></thead>
+            <tbody>${rows || '<tr><td colspan="7" style="text-align:center">Hech narsa topilmadi</td></tr>'}</tbody>
+          </table>
+        `;
+      } catch (err) { container.innerHTML = '<p style="padding: 2rem">Xatolik yuz berdi.</p>'; }
+    }
+
+    // --- MENU PAGE ---
+    async function renderMenu() {
+      const view = document.getElementById('main-view');
+      view.innerHTML = `
+        <div class="page-title">
+          <span>🍽 Menyu</span>
+          <button class="btn btn-primary" onclick="openAddMenuModal()">+ Yangi taom</button>
+        </div>
+        <div class="menu-grid" id="menu-container">
+          ${[1,2,3,4,5,6].map(() => `<div class="menu-card skeleton" style="height: 250px"></div>`).join('')}
+        </div>
+      `;
+      loadMenu();
+    }
+
+    async function loadMenu() {
+      const container = document.getElementById('menu-container');
+      try {
+        const menu = await apiGet('/api/admin/menu');
+        state.menu = menu;
+        container.innerHTML = menu.map(item => `
+          <div class="menu-card">
+            <div class="menu-img">
+              ${item.image_url ? `<img src="${item.image_url}" style="width:100%;height:100%;object-fit:cover">` : item.emoji}
+            </div>
+            <div class="menu-info">
+              <div class="menu-name">${item.name_uz}</div>
+              <div class="menu-cat">${item.category_id}</div>
+              <div class="menu-price-row">
+                <div class="menu-price">${item.price.toLocaleString()} sum</div>
+                <label class="switch">
+                  <input type="checkbox" ${item.is_available ? 'checked' : ''} onchange="toggleItem('${item.id}', this.checked)">
+                  <span class="slider"></span>
+                </label>
+              </div>
+              <div style="margin-top: 1rem; display: flex; gap: 0.5rem">
+                <button class="btn btn-outline sm" onclick="editItem('${item.id}')">Tahrirlash</button>
+                <button class="btn btn-danger sm" onclick="deleteItem('${item.id}')">🗑</button>
+              </div>
+            </div>
+          </div>
+        `).join('');
+      } catch (err) { container.innerHTML = 'Xatolik.'; }
+    }
+
+    // --- USERS PAGE ---
+    async function renderUsers() {
+      const view = document.getElementById('main-view');
+      view.innerHTML = `
+        <div class="page-title">
+          <span>👥 Foydalanuvchilar</span>
+          <input type="text" class="form-input" style="width: 250px" placeholder="Qidirish..." oninput="loadUsers(this.value)">
+        </div>
+        <div class="table-container" id="users-table-container"></div>
+      `;
+      loadUsers();
+    }
+
+    async function loadUsers(query = '') {
+      const container = document.getElementById('users-table-container');
+      try {
+        const users = await apiGet(`/api/admin/users?search=${query}`);
+        let rows = users.map(u => `
+          <tr>
+            <td><div style="width:32px;height:32px;background:var(--sidebar-bg);border-radius:50%;display:flex;align-items:center;justify-content:center">${u.full_name[0]}</div></td>
+            <td>${u.full_name}</td>
+            <td>@${u.username || '-'}</td>
+            <td>${u.total_orders || 0}</td>
+            <td style="font-weight:600">${(u.total_spent || 0).toLocaleString()} sum</td>
+            <td style="color: var(--primary)">${u.loyalty_points || 0} pt</td>
+            <td>${new Date(u.created_at).toLocaleDateString()}</td>
+            <td><span class="badge ${u.is_blocked ? 'badge-cancelled' : 'badge-delivered'}">${u.is_blocked ? 'Blok' : 'Faol'}</span></td>
+            <td>
+              <button class="btn btn-outline sm" onclick="toggleUserBlock(${u.id}, ${!u.is_blocked})">
+                ${u.is_blocked ? 'Ochish' : 'Bloklash'}
+              </button>
+            </td>
+          </tr>
+        `).join('');
+        container.innerHTML = `<table><thead><tr><th></th><th>Ism</th><th>User</th><th>B-lar</th><th>Xarajat</th><th>Ball</th><th>Sana</th><th>Status</th><th></th></tr></thead><tbody>${rows}</tbody></table>`;
+      } catch (err) { }
+    }
+
+    // --- COUPONS PAGE ---
+    async function renderCoupons() {
+      const view = document.getElementById('main-view');
+      view.innerHTML = `<h1 class="page-title">🎟 Kuponlar <button class="btn btn-primary" onclick="openAddCouponModal()">+ Yangi</button></h1><div class="table-container" id="coupons-table-container"></div>`;
+      const container = document.getElementById('coupons-table-container');
+      try {
+        const coupons = await apiGet('/api/admin/coupons');
+        let rows = coupons.map(c => `
+          <tr>
+            <td style="font-weight: 700; color: var(--primary)">${c.code}</td>
+            <td>${c.discount_type === 'percent' ? c.discount_value + '%' : c.discount_value.toLocaleString() + ' sum'}</td>
+            <td>${c.used_count} / ${c.max_uses}</td>
+            <td><span class="badge ${c.is_active ? 'badge-delivered' : 'badge-cancelled'}">${c.is_active ? 'Faol' : 'O\'chgan'}</span></td>
+            <td><button class="btn btn-danger sm" onclick="deleteCoupon('${c.id}')">🗑</button></td>
+          </tr>
+        `).join('');
+        container.innerHTML = `<table><thead><tr><th>Kod</th><th>Qiymat</th><th>Ishlatilgan</th><th>Status</th><th></th></tr></thead><tbody>${rows}</tbody></table>`;
+      } catch (err) { }
+    }
+
+    // --- BROADCAST PAGE ---
+    function renderBroadcast() {
+      const view = document.getElementById('main-view');
+      view.innerHTML = `
+        <h1 class="page-title">📢 Xabar yuborish</h1>
+        <div class="stat-card" style="max-width: 600px">
+          <div class="form-group">
+            <label class="form-label">Xabar matni</label>
+            <textarea id="bc-text" class="form-textarea" rows="8" placeholder="Barcha foydalanuvchilarga yuboriladigan xabar..."></textarea>
+          </div>
+          <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 0.5rem; margin-bottom: 1.5rem">
+            <small style="color: var(--gray)">Ko'rinishi:</small>
+            <div id="bc-preview" style="margin-top:0.5rem; white-space: pre-wrap;"></div>
+          </div>
+          <button class="btn btn-primary" onclick="sendBroadcast()" style="width: 100%">🚀 Xabarni yuborish</button>
+        </div>
+      `;
+      document.getElementById('bc-text').addEventListener('input', (e) => {
+        document.getElementById('bc-preview').textContent = e.target.value;
+      });
+    }
+
+    async function sendBroadcast() {
+      const text = document.getElementById('bc-text').value;
+      if (!text) return showToast('Xabar yozing!', 'error');
+      
+      if (!confirm('Haqiqatdan ham barcha foydalanuvchilarga xabar yubormoqchimisiz?')) return;
+      
+      try {
+        await apiPost('/api/admin/broadcast', { message: text });
+        showToast('Xabar yuborish boshlandi!', 'success');
+        document.getElementById('bc-text').value = '';
+      } catch (err) { showToast('Xatolik!', 'error'); }
+    }
+
+    // --- ADMINISTRATIVE ACTIONS ---
+    async function showOrderDetail(orderId) {
+      try {
+        const orders = await apiGet(`/api/admin/orders?search=${orderId}`);
+        const order = orders.find(x => x.id === orderId);
+        if (!order) return;
+
+        const statusMap = {
+          'new': { label: 'Yangi', color: '#FFB800' },
+          'confirmed': { label: 'Tasdiqlangan', color: '#00C853' },
+          'cooking': { label: 'Tayyorlanmoqda', color: '#FF6B00' },
+          'delivering': { label: 'Yo\'lga chiqdi', color: '#2196F3' },
+          'delivered': { label: 'Yetkazildi', color: '#00C853' },
+          'cancelled': { label: 'Bekor qilingan', color: '#E8001C' }
+        };
+
+        const status = order.status;
+        const status_info = statusMap[status] || { label: status, color: '#aaa' };
+        const status_label = status_info.label;
+        const status_color = status_info.color;
+        
+        const formatted_date = new Date(order.created_at).toLocaleString('uz-UZ', {
+          day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
+        });
+
+        const customer_name = order.users?.full_name || 'Noma\'lum';
+        const username = order.users?.username ? '@' + order.users.username : '-';
+        const address = order.delivery_address || 'Manzil ko\'rsatilmagan';
+        const note = order.note || '';
+        const items = order.items || [];
+        
+        const subtotal = items.reduce((s, i) => s + (i.price * i.qty), 0);
+        const delivery_fee = order.delivery_fee || 0;
+        const discount = order.discount || 0;
+        const total = order.total || (subtotal + delivery_fee - discount);
+
+        const html = `
+          <div style="background:linear-gradient(135deg,#1e3a5f,#16213e); 
+            padding:20px; border-radius:12px 12px 0 0; margin: -1.5rem -1.5rem 0 -1.5rem;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <div>
+                <div style="color:#FFB800; font-size:20px; font-weight:800;">
+                  ${order.id}
+                </div>
+                <div style="color:#aaa; font-size:13px;">${formatted_date}</div>
+              </div>
+              <div style="background:${status_color}22; color:${status_color}; 
+                padding:6px 14px; border-radius:50px; font-weight:700; font-size:13px;">
+                ${status_label}
+              </div>
+            </div>
+          </div>
+
+          <div style="padding:16px; border-bottom:1px solid rgba(255,255,255,0.05); margin: 0 -1.5rem;">
+            <div style="color:#888; font-size:11px; text-transform:uppercase; margin-bottom:8px;">
+              MIJOZ MA'LUMOTLARI
+            </div>
+            <div style="font-weight:700; font-size:15px;">${customer_name}</div>
+            <div style="color:#FFB800; font-size:13px;">${username}</div>
+            <div style="color:#aaa; font-size:13px; margin-top:4px;">📍 ${address}</div>
+            ${note ? '<div style="color:#aaa; font-size:13px;">📝 ' + note + '</div>' : ''}
+          </div>
+
+          <div style="padding:16px; border-bottom:1px solid rgba(255,255,255,0.05); margin: 0 -1.5rem;">
+            <div style="color:#888; font-size:11px; text-transform:uppercase; margin-bottom:8px;">
+              BUYURTMA TARKIBI
+            </div>
+            ${items.map(item => `
+              <div style="display:flex; justify-content:space-between; 
+                align-items:center; padding:8px 0; 
+                border-bottom:1px solid rgba(255,255,255,0.03);">
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <span style="font-size:20px;">${item.emoji || '🍽'}</span>
+                  <div>
+                    <div style="font-weight:600; font-size:14px;">
+                      ${item.name_uz || item.name_ru || item.name || 'Taom'}
+                    </div>
+                    <div style="color:#888; font-size:12px;">
+                      ${(item.price || 0).toLocaleString()} so'm × ${item.qty}
+                    </div>
+                  </div>
+                </div>
+                <div style="font-weight:700; color:#FFB800;">
+                  ${((item.price || 0) * item.qty).toLocaleString()} so'm
+                </div>
+              </div>
+            `).join('')}
+          </div>
+
+          <div style="padding:16px; border-bottom:1px solid rgba(255,255,255,0.05); margin: 0 -1.5rem;">
+            <div style="display:flex; justify-content:space-between; 
+              color:#aaa; font-size:14px; margin-bottom:6px;">
+              <span>Mahsulotlar:</span>
+              <span>${subtotal.toLocaleString()} so'm</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; 
+              color:#aaa; font-size:14px; margin-bottom:6px;">
+              <span>Yetkazib berish:</span>
+              <span>${delivery_fee.toLocaleString()} so'm</span>
+            </div>
+            ${discount > 0 ? `
+            <div style="display:flex; justify-content:space-between; 
+              color:#00C853; font-size:14px; margin-bottom:6px;">
+              <span>Chegirma:</span>
+              <span>-${discount.toLocaleString()} so'm</span>
+            </div>` : ''}
+            <div style="display:flex; justify-content:space-between; 
+              font-weight:800; font-size:17px; margin-top:8px;
+              padding-top:8px; border-top:1px solid rgba(255,255,255,0.1);">
+              <span>JAMI:</span>
+              <span style="color:#FFB800;">${total.toLocaleString()} so'm</span>
+            </div>
+          </div>
+
+          <div style="padding:16px; margin: 0 -1.5rem -1.5rem -1.5rem;">
+            <div style="color:#888; font-size:11px; text-transform:uppercase; margin-bottom:10px;">
+              STATUS O'ZGARTIRISH
+            </div>
+            <div style="display:flex; flex-wrap:wrap; gap:8px;">
+              ${status === 'new' ? `
+                <button onclick="updateStatus('${orderId}', 'confirmed')" 
+                  style="flex:1; padding:10px; border-radius:8px; border:none;
+                  background:#00C853; color:#fff; font-weight:700; cursor:pointer;">
+                  ✅ Tasdiqlash
+                </button>
+                <button onclick="updateStatus('${orderId}', 'cancelled')"
+                  style="flex:1; padding:10px; border-radius:8px; border:none;
+                  background:#E8001C; color:#fff; font-weight:700; cursor:pointer;">
+                  ❌ Bekor qilish
+                </button>` : ''}
+              ${status === 'confirmed' ? `
+                <button onclick="updateStatus('${orderId}', 'cooking')"
+                  style="width:100%; padding:10px; border-radius:8px; border:none;
+                  background:#FF6B00; color:#fff; font-weight:700; cursor:pointer;">
+                  👨🍳 Tayyorlanmoqda
+                </button>` : ''}
+              ${status === 'cooking' ? `
+                <button onclick="updateStatus('${orderId}', 'delivering')"
+                  style="width:100%; padding:10px; border-radius:8px; border:none;
+                  background:#2196F3; color:#fff; font-weight:700; cursor:pointer;">
+                  🛵 Yo'lga chiqdi
+                </button>` : ''}
+              ${status === 'delivering' ? `
+                <button onclick="updateStatus('${orderId}', 'delivered')"
+                  style="width:100%; padding:10px; border-radius:8px; border:none;
+                  background:#00C853; color:#fff; font-weight:700; cursor:pointer;">
+                  ✅ Yetkazildi
+                </button>` : ''}
+            </div>
+          </div>
+        `;
+
+        openModal(`Buyurtma Tafsilotlari`, html);
+      } catch (err) {
+        console.error(err);
+        showToast('Xatolik yuz berdi', 'error');
+      }
+    }
+
+    async function updateStatus(id, status) {
+      if (!confirm('Tasdiqlaysizmi?')) return;
+      try { await apiPost(`/api/admin/orders/${id}/status`, { status }); showToast('Yangilandi'); closeModal(); if (state.currentPage === 'dashboard') fetchDashboardOrders(); else loadOrders(); } catch (err) {}
+    }
+
+    async function toggleItem(id, available) { try { await fetch(`${API_BASE}/api/admin/menu/${id}`, { method: 'PUT', headers: { 'Authorization': `Bearer ${state.token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ is_available: available }) }); showToast('Yangilandi'); } catch (err) {} }
+    async function deleteItem(id) { if (!confirm('O\'chirish?')) return; try { await fetch(`${API_BASE}/api/admin/menu/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${state.token}` } }); showToast('O\'chirildi'); loadMenu(); } catch (err) {} }
+    async function editItem(id) {
+      const item = state.menu.find(x => x.id === id);
+      if (!item) return showToast('Taom topilmadi!', 'error');
+      await openMenuFormModal(item);
+    }
+    async function toggleUserBlock(id, block) { try { await apiPost(`/api/admin/users/${id}/${block ? 'block' : 'unblock'}`, {}); showToast('Bajarildi'); loadUsers(); } catch (err) {} }
+
+    async function loadCategoriesForForm() {
+      try {
+        const res = await fetch(`${API_BASE}/api/menu/categories`, {
+          headers: { 'Authorization': `Bearer ${state.token}` }
+        });
+        const cats = await res.json();
+        const select = document.getElementById('item-category');
+        if (select) {
+          select.innerHTML = cats.map(c => `<option value="${c.id}">${c.emoji || ''} ${c.name_uz}</option>`).join('');
+        }
+      } catch (err) { console.error('Cats load error:', err); }
+    }
+
+    async function openMenuFormModal(item = null) {
+      const isEdit = !!item;
+      const content = `
+        <form id="menu-form" style="display: grid; gap: 1rem;">
+          <div class="form-group"><label>Kategoriya</label><select id="item-category" name="category_id" class="form-input"><option>Yuklanmoqda...</option></select></div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.5rem;">
+            <div class="form-group"><label>Nomi (UZ)</label><input id="item-name-uz" name="name_uz" class="form-input" required></div>
+            <div class="form-group"><label>Nomi (RU)</label><input id="item-name-ru" name="name_ru" class="form-input"></div>
+            <div class="form-group"><label>Nomi (EN)</label><input id="item-name-en" name="name_en" class="form-input"></div>
+          </div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.5rem;">
+            <div class="form-group"><label>Tavsif (UZ)</label><textarea id="item-desc-uz" name="description_uz" class="form-input"></textarea></div>
+            <div class="form-group"><label>Tavsif (RU)</label><textarea id="item-desc-ru" name="description_ru" class="form-input"></textarea></div>
+            <div class="form-group"><label>Tavsif (EN)</label><textarea id="item-desc-en" name="description_en" class="form-input"></textarea></div>
+          </div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.5rem;">
+            <div class="form-group"><label>Narx</label><input id="item-price" name="price" type="number" class="form-input" required></div>
+            <div class="form-group"><label>Emoji</label><input id="item-emoji" name="emoji" class="form-input" placeholder="🍔"></div>
+            <div class="form-group"><label>Badge</label><select id="item-badge" name="badge" class="form-input"><option value="">Yo'q</option><option value="🔥 Hit">🔥 Hit</option><option value="⭐ Yangi">⭐ Yangi</option><option value="💰 Arzon">💰 Arzon</option></select></div>
+          </div>
+          <!-- Image Section -->
+          <div style="margin-bottom:16px;">
+            <label style="color:#aaa; font-size:12px; text-transform:uppercase; 
+              display:block; margin-bottom:8px;">TAOM RASMI</label>
+            
+            <!-- Tab switcher -->
+            <div style="display:flex; gap:0; margin-bottom:10px; border-radius:8px; overflow:hidden; border:1px solid rgba(255,107,0,0.3);">
+              <button type="button" id="img-tab-url" onclick="switchImgTab('url')"
+                style="flex:1; padding:8px; border:none; background:#FF6B00; 
+                color:#fff; font-size:13px; font-weight:600; cursor:pointer;">
+                🔗 URL
+              </button>
+              <button type="button" id="img-tab-file" onclick="switchImgTab('file')"
+                style="flex:1; padding:8px; border:none; background:#2D1500; 
+                color:#FFD4A3; font-size:13px; font-weight:600; cursor:pointer;">
+                📁 Fayl
+              </button>
+            </div>
+            
+            <!-- URL input -->
+            <div id="img-url-section">
+              <input type="url" id="item-image-url" 
+                placeholder="https://example.com/image.jpg"
+                style="width:100%; padding:10px 12px; border-radius:8px; border:1px solid rgba(255,107,0,0.3);
+                background:#1A0A00; color:#fff; font-size:14px; box-sizing:border-box;">
+            </div>
+            
+            <!-- File upload -->
+            <div id="img-file-section" style="display:none;">
+              <div id="upload-drop-zone" 
+                onclick="document.getElementById('img-file-input').click()"
+                ondragover="event.preventDefault(); this.style.borderColor='#FF6B00'"
+                ondragleave="this.style.borderColor='rgba(255,107,0,0.3)'"
+                ondrop="handleImageDrop(event)"
+                style="border:2px dashed rgba(255,107,0,0.3); border-radius:8px;
+                padding:24px; text-align:center; cursor:pointer; transition:all 0.2s;
+                background:#1A0A00;">
+                <div style="font-size:32px; margin-bottom:8px;">📸</div>
+                <div style="color:#FFD4A3; font-size:14px;">Rasmni shu yerga tashlang</div>
+                <div style="color:#666; font-size:12px; margin-top:4px;">yoki bosib tanlang</div>
+                <div style="color:#666; font-size:11px; margin-top:4px;">JPG, PNG, WEBP — max 5MB</div>
+              </div>
+              <input type="file" id="img-file-input" accept="image/*" 
+                style="display:none" onchange="handleImageFile(this.files[0])">
+            </div>
+            
+            <!-- Preview -->
+            <div id="img-preview" style="display:none; margin-top:10px;">
+              <img id="img-preview-img" style="width:100%; max-height:160px; 
+                object-fit:cover; border-radius:8px; border:1px solid rgba(255,107,0,0.3);">
+              <button type="button" onclick="clearImage()"
+                style="width:100%; margin-top:6px; padding:6px; border-radius:6px;
+                border:none; background:#3D1500; color:#FFD4A3; cursor:pointer; font-size:13px;">
+                ✕ Rasmni olib tashlash
+              </button>
+            </div>
+          </div>
+        </form>
+      `;
+
+      const title = isEdit ? 'Taomni tahrirlash' : 'Yangi taom qo\'shish';
+      const saveBtn = `<button class="btn btn-primary" onclick="saveMenuItem(${isEdit ? `'${item.id}'` : ''})">Saqlash</button>`;
+      
+      openModal(title, content, saveBtn);
+      await loadCategoriesForForm();
+      
+      if (isEdit) {
+        document.getElementById('item-category').value = item.category_id;
+        document.getElementById('item-name-uz').value = item.name_uz || '';
+        document.getElementById('item-name-ru').value = item.name_ru || '';
+        document.getElementById('item-name-en').value = item.name_en || '';
+        document.getElementById('item-desc-uz').value = item.description_uz || '';
+        document.getElementById('item-desc-ru').value = item.description_ru || '';
+        document.getElementById('item-desc-en').value = item.description_en || '';
+        document.getElementById('item-price').value = item.price || 0;
+        document.getElementById('item-emoji').value = item.emoji || '🍽';
+        document.getElementById('item-badge').value = item.badge || '';
+        
+        if (item.image_url) {
+          document.getElementById('item-image-url').value = item.image_url;
+          document.getElementById('img-preview-img').src = item.image_url;
+          document.getElementById('img-preview').style.display = 'block';
+          document.getElementById('upload-drop-zone').style.display = 'none';
+        }
+      }
+    }
+
+    async function openAddMenuModal() {
+      await openMenuFormModal(null);
+    }
+
+    let uploadedImageUrl = null;
+    let uploadedImageFile = null;
+
+    function switchImgTab(tab) {
+      const urlSection = document.getElementById('img-url-section');
+      const fileSection = document.getElementById('img-file-section');
+      const urlTab = document.getElementById('img-tab-url');
+      const fileTab = document.getElementById('img-tab-file');
+      
+      if(tab === 'url') {
+        urlSection.style.display = 'block';
+        fileSection.style.display = 'none';
+        urlTab.style.background = '#FF6B00';
+        urlTab.style.color = '#fff';
+        fileTab.style.background = '#2D1500';
+        fileTab.style.color = '#FFD4A3';
+      } else {
+        urlSection.style.display = 'none';
+        fileSection.style.display = 'block';
+        fileTab.style.background = '#FF6B00';
+        fileTab.style.color = '#fff';
+        urlTab.style.background = '#2D1500';
+        urlTab.style.color = '#FFD4A3';
+      }
+    }
+
+    function handleImageFile(file) {
+      if(!file) return;
+      
+      // Validate
+      if(file.size > 5 * 1024 * 1024) {
+        showToast('❌ Rasm 5MB dan kichik bo\'lishi kerak', 'error');
+        return;
+      }
+      if(!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+        showToast('❌ Faqat JPG, PNG, WEBP formatlar', 'error');
+        return;
+      }
+      
+      uploadedImageFile = file;
+      uploadedImageUrl = null;
+      
+      // Show preview
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        document.getElementById('img-preview-img').src = e.target.result;
+        document.getElementById('img-preview').style.display = 'block';
+        document.getElementById('upload-drop-zone').style.display = 'none';
+      };
+      reader.readAsDataURL(file);
+      
+      showToast('✅ Rasm tanlandi, saqlashda yuklanadi', 'success');
+    }
+
+    function handleImageDrop(event) {
+      event.preventDefault();
+      const file = event.dataTransfer.files[0];
+      if(file) handleImageFile(file);
+      event.target.style.borderColor = 'rgba(255,107,0,0.3)';
+    }
+
+    function clearImage() {
+      uploadedImageFile = null;
+      uploadedImageUrl = null;
+      document.getElementById('img-preview').style.display = 'none';
+      document.getElementById('upload-drop-zone').style.display = 'block';
+      document.getElementById('img-file-input').value = '';
+      const urlInput = document.getElementById('item-image-url');
+      if (urlInput) urlInput.value = '';
+    }
+
+    async function uploadImageToServer(file) {
+      const token = sessionStorage.getItem('admin_token');
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      showToast('📤 Rasm yuklanmoqda...', 'info');
+      
+      try {
+        const res = await fetch(`${API_BASE}/api/admin/menu/upload`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}` },
+          body: formData
+        });
+        
+        if(!res.ok) throw new Error('Upload failed');
+        
+        const data = await res.json();
+        showToast('✅ Rasm yuklandi!', 'success');
+        return data.url;
+      } catch(e) {
+        showToast('❌ Rasm yuklanmadi', 'error');
+        return null;
+      }
+    }
+
+    async function saveMenuItem(itemId = null) {
+      const form = document.getElementById('menu-form');
+      const formData = new FormData(form);
+      const data = Object.fromEntries(formData.entries());
+      
+      // Ensure numeric types
+      data.price = parseInt(data.price);
+      data.is_available = true;
+      data.sort_order = 99;
+
+      if (!data.name_uz || isNaN(data.price)) return showToast('Ma\'lumotlarni to\'liq kiriting!', 'error');
+
+      // Handle image
+      let imageUrl = null;
+      if(uploadedImageFile) {
+        imageUrl = await uploadImageToServer(uploadedImageFile);
+        if(!imageUrl) return; // Upload failed
+      } else if(document.getElementById('item-image-url')?.value) {
+        imageUrl = document.getElementById('item-image-url').value.trim();
+      } else if(itemId) {
+        // Keep the original image URL if no new one was provided/uploaded
+        const item = state.menu.find(x => x.id === itemId);
+        if (item) imageUrl = item.image_url;
+      }
+      data.image_url = imageUrl;
+
+      try { 
+        if (itemId) {
+          await apiPut(`/api/admin/menu/${itemId}`, data);
+          showToast('Muvaffaqiyatli tahrirlandi', 'success');
+        } else {
+          await apiPost('/api/admin/menu', data); 
+          showToast('Saqlandi', 'success');
+        }
+        closeModal(); 
+        loadMenu();
+        clearImage();
+      } catch (err) { showToast('Xatolik!', 'error'); }
+    }
+
+    function openAddCouponModal() {
+      const content = `<form id="coupon-form"><div class="form-group"><label>Kod</label><input name="code" class="form-input"></div><div class="form-group"><label>Turi</label><select name="discount_type" class="form-select"><option value="percent">Foiz (%)</option><option value="fixed">Summa (sum)</option></select></div><div class="form-group"><label>Qiymat</label><input name="discount_value" type="number" class="form-input"></div></form>`;
+      openModal('Yangi kupon', content, `<button class="btn btn-primary" onclick="saveCoupon()">Saqlash</button>`);
+    }
+
+    async function saveCoupon() {
+      const form = document.getElementById('coupon-form');
+      const data = { code: form.code.value.toUpperCase(), discount_type: form.discount_type.value, discount_value: parseInt(form.discount_value.value), max_uses: 100, used_count: 0, is_active: true };
+      try { await apiPost('/api/admin/coupons', data); showToast('Saqlandi'); closeModal(); renderCoupons(); } catch (err) {}
+    }
+
+    async function deleteCoupon(id) {
+      if (!confirm('O\'chirish?')) return;
+      try {
+        await fetch(`${API_BASE}/api/admin/coupons/${id}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${state.token}` }
+        });
+        showToast('O\'chirildi');
+        renderCoupons();
+      } catch (err) {}
+    }
+
+    // --- UTILS ---
+    async function apiGet(path) {
+      const res = await fetch(`${API_BASE}${path}`, {
+        headers: { 'Authorization': `Bearer ${state.token}` }
+      });
+      if (res.status === 401) logout();
+      return await res.json();
+    }
+
+    async function apiPost(path, body) {
+      const res = await fetch(`${API_BASE}${path}`, {
+        method: 'POST',
+        headers: { 
+          'Authorization': `Bearer ${state.token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(body)
+      });
+      if (res.status === 401) logout();
+      return await res.json();
+    }
+
+    async function apiPut(path, body) {
+      const res = await fetch(`${API_BASE}${path}`, {
+        method: 'PUT',
+        headers: { 
+          'Authorization': `Bearer ${state.token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(body)
+      });
+      if (res.status === 401) logout();
+      return await res.json();
+    }
+
+    function formatTime(iso) {
+      const date = new Date(iso);
+      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+
+    function showToast(msg, type = 'success') {
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+      toast.className = `toast`;
+      toast.style.backgroundColor = type === 'success' ? 'var(--success)' : type === 'error' ? 'var(--error)' : 'var(--info)';
+      toast.innerHTML = `
+        <span>${type === 'success' ? '✅' : type === 'error' ? '❌' : 'ℹ️'}</span>
+        <span>${msg}</span>
+      `;
+      container.appendChild(toast);
+      setTimeout(() => toast.remove(), 3000);
+    }
+
+    function openModal(title, content, footer = '') {
+      document.getElementById('modal-title').textContent = title;
+      document.getElementById('modal-body').innerHTML = content;
+      document.getElementById('modal-footer').innerHTML = footer;
+      document.getElementById('modal-overlay').style.display = 'flex';
+    }
+
+    function closeModal() {
+      document.getElementById('modal-overlay').style.display = 'none';
+    }
+
+    function initApp() {
+      document.getElementById('login-page').style.display = 'none';
+      document.getElementById('app').style.display = 'grid';
+      navigate('dashboard');
+      startOrderNotifications(); // 🔔 Login bo'lgandan so'ng bildirishnomani yoqamiz
+    }
+
+    function filterOrders(el, status) {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      el.classList.add('active');
+      const query = document.querySelector('#orders-search')?.value || '';
+      loadOrders(status, query);
+    }
+
+    function searchOrders(val) {
+      const activeTab = document.querySelector('.tab.active');
+      const status = activeTab?.dataset?.status || '';
+      loadOrders(status, val);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // 🔔 ADMIN OVOZLI BILDIRISHNOMA TIZIMI (Sound Notification System)
+    // Har 12 soniyada yangi buyurtmalar tekshiriladi.
+    // Yangi buyurtma aniqlansa, Web Audio API yordamida beep ovozi chalinadi.
+    // ─────────────────────────────────────────────────────────────────────────
+    let notificationLastOrderId = sessionStorage.getItem('last_known_order_id') || null;
+    let notificationInterval = null;
+
+    function playBeep() {
+      try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const oscillator = ctx.createOscillator();
+        const gainNode = ctx.createGain();
+        oscillator.connect(gainNode);
+        gainNode.connect(ctx.destination);
+        oscillator.type = 'sine';
+        // Birinchi ton
+        oscillator.frequency.setValueAtTime(880, ctx.currentTime);
+        gainNode.gain.setValueAtTime(0.4, ctx.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+        oscillator.start(ctx.currentTime);
+        oscillator.stop(ctx.currentTime + 0.4);
+        // Ikkinchi ton (echo effekt)
+        const osc2 = ctx.createOscillator();
+        const gain2 = ctx.createGain();
+        osc2.connect(gain2);
+        gain2.connect(ctx.destination);
+        osc2.type = 'sine';
+        osc2.frequency.setValueAtTime(660, ctx.currentTime + 0.45);
+        gain2.gain.setValueAtTime(0.3, ctx.currentTime + 0.45);
+        gain2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.85);
+        osc2.start(ctx.currentTime + 0.45);
+        osc2.stop(ctx.currentTime + 0.85);
+      } catch(e) {
+        console.warn('Audio beep failed:', e);
+      }
+    }
+
+    async function checkForNewOrders() {
+      if (!state.token) return;
+      try {
+        const orders = await apiGet('/api/admin/orders?status=new&limit=1');
+        if (!Array.isArray(orders) || orders.length === 0) return;
+        const latestId = orders[0].id;
+        if (notificationLastOrderId === null) {
+          // Birinchi marta — faqat ID ni eslab qo'yamiz, ovoz chiqarmaymiz
+          notificationLastOrderId = latestId;
+          sessionStorage.setItem('last_known_order_id', latestId);
+        } else if (latestId !== notificationLastOrderId) {
+          // Yangi buyurtma kelib qoldi!
+          notificationLastOrderId = latestId;
+          sessionStorage.setItem('last_known_order_id', latestId);
+          playBeep();
+          // Browser Notification ham ko'rsatamiz (agar ruxsat berilgan bo'lsa)
+          showToast(`🔔 Yangi buyurtma keldi: #${latestId}`, 'success');
+          if (Notification.permission === 'granted') {
+            new Notification('🍔 Yangi Buyurtma!', {
+              body: `Buyurtma #${latestId} keldi. Darhol tekshiring!`,
+              icon: '/favicon.ico'
+            });
+          }
+          // Agar orders sahifasida bo'lsa, avtomatik yangilansin
+          if (state.currentPage === 'orders') loadOrders();
+          if (state.currentPage === 'dashboard') fetchDashboardOrders();
+        }
+      } catch(e) {
+        console.warn('Order check failed:', e);
+      }
+    }
+
+    function startOrderNotifications() {
+      if (notificationInterval) clearInterval(notificationInterval);
+      // Brauzer Notification uchun ruxsat so'raymiz
+      if (Notification && Notification.permission === 'default') {
+        Notification.requestPermission();
+      }
+      // Darhol bir tekshirib olamiz, keyin har 12 soniyada
+      checkForNewOrders();
+      notificationInterval = setInterval(checkForNewOrders, 12000);
+    }
+
+    function stopOrderNotifications() {
+      if (notificationInterval) {
+        clearInterval(notificationInterval);
+        notificationInterval = null;
+      }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+
+    // Backdrop click to close modal
+    document.getElementById('modal-overlay').addEventListener('click', (e) => {
+      if (e.target === document.getElementById('modal-overlay')) closeModal();
+    });
+
+    // Sidebar navigation click handler
+    document.querySelectorAll('.nav-item').forEach(item => {
+      item.addEventListener('click', () => {
+        const page = item.dataset.page;
+        if (page) navigate(page);
+      });
+    });
+
+    // Check existing session
+    if (state.token) {
+      initApp();
+    }
+  </script>
+</body>
+</html>
