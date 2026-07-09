@@ -3,7 +3,7 @@ import uuid
 import logging
 from datetime import datetime, date
 from aiogram import Router, F, Bot
-from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton, ContentType
+from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton, ContentType, WebAppInfo
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
@@ -87,6 +87,9 @@ async def admin_cmd(message: Message, **kwargs):
         [
             InlineKeyboardButton(text="🎟 Kuponlar", callback_data="adm_coupons"),
             InlineKeyboardButton(text="📢 Xabar yuborish", callback_data="adm_broadcast")
+        ],
+        [
+            InlineKeyboardButton(text="⚙️ Admin Panel (Web)", web_app=WebAppInfo(url=config.ADMIN_PANEL_URL))
         ]
     ])
     
@@ -603,6 +606,9 @@ async def adm_main(call: CallbackQuery, **kwargs):
         [
             InlineKeyboardButton(text="🎟 Kuponlar", callback_data="adm_coupons"),
             InlineKeyboardButton(text="📢 Xabar yuborish", callback_data="adm_broadcast")
+        ],
+        [
+            InlineKeyboardButton(text="⚙️ Admin Panel (Web)", web_app=WebAppInfo(url=config.ADMIN_PANEL_URL))
         ]
     ])
     
