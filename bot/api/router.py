@@ -37,24 +37,34 @@ INIT_DATA_MAX_AGE = 86400  # 24 soat
 def validate_init_data(init_data: str, bot_token: str) -> bool:
     """Validates data received from the Telegram Mini App."""
     try:
+        if not init_data:
+            logger.warning("validate_init_data: init_data is empty")
+            return False
+            
         vals = dict(parse_qsl(init_data))
+        if 'hash' not in vals:
+            logger.warning("validate_init_data: 'hash' missing in init_data")
+            return False
+            
         hash_str = vals.pop('hash')
         data_check_str = '\n'.join(f'{k}={v}' for k, v in sorted(vals.items()))
 
+        bot_token = bot_token.strip()
         secret_key = hmac.new(b"WebAppData", bot_token.encode(), hashlib.sha256).digest()
         calc_hash = hmac.new(secret_key, data_check_str.encode(), hashlib.sha256).hexdigest()
 
-        # Imzoni doim doimiy-vaqt (timing-safe) solishtirish bilan tekshiramiz
         if not hmac.compare_digest(calc_hash, hash_str):
+            logger.warning(f"validate_init_data: Hash mismatch! calc={calc_hash} vs hash={hash_str}. Token prefix: {bot_token[:10]}")
             return False
 
-        # auth_date eskirganini tekshiramiz — eski initData qayta ishlatilishining oldini oladi
         auth_date = int(vals.get('auth_date', 0))
         if auth_date and (time.time() - auth_date) > INIT_DATA_MAX_AGE:
+            logger.warning(f"validate_init_data: auth_date too old! auth_date={auth_date}, now={time.time()}")
             return False
 
         return True
-    except Exception:
+    except Exception as e:
+        logger.error(f"validate_init_data Exception: {e}")
         return False
 
 def get_verified_user_id(request: web.Request) -> int | None:
