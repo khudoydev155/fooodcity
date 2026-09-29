@@ -1,0 +1,4 @@
+Endi bot UI&UX larini ham tekshirib analize qilib chiq, qanday kamchiliklar bor va nimalarni yaxshilash kerak burchak qirralarini va shu kabi boshqa narsalar, hech qanday narsa yashirinib ko'rinmay qolmayabdimi kabi narsalarini tekshirib chiq.
+Umumiy 5 ta xatolik yani tavsiya yaxshilash.
+Va 5 ta yomon xolat va kelsugida duch kelishimiz mumkin bo'lgan muammoni aniqla.
+Loyihani yaxshilash productionga chiqish uchun nimalar qilish kerak production uchun tayyorligi haqida ayt.

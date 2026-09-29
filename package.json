@@ -1,0 +1,11 @@
+{
+  "dependencies": {
+    "@tanstack/react-query": "^5.101.2",
+    "date-fns": "^4.4.0",
+    "lucide-react": "^1.24.0",
+    "react-hot-toast": "^2.6.0",
+    "react-router-dom": "^7.18.1",
+    "recharts": "^3.9.2",
+    "zustand": "^5.0.14"
+  }
+}

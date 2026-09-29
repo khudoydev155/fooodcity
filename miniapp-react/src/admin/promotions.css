@@ -1,0 +1,120 @@
+.promo-admin {
+  width: min(1500px, 100%);
+  margin: 0 auto;
+  padding: 30px clamp(16px, 3vw, 38px) 48px;
+}
+
+.promo-admin-header,
+.promo-library-heading,
+.promo-editor-heading,
+.promo-form-actions,
+.promo-record,
+.promo-record-meta,
+.promo-record-actions {
+  display: flex;
+  align-items: center;
+}
+
+.promo-admin-header,
+.promo-library-heading {
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.promo-admin-header { margin-bottom: 26px; }
+.promo-admin-header h1 { margin: 5px 0 4px; font-size: clamp(24px, 3vw, 34px); }
+.promo-admin-header p,
+.promo-editor-heading p,
+.promo-library-heading p { color: var(--gray); font-size: 13px; }
+.promo-eyebrow { color: var(--primary); font-size: 10px; font-weight: 900; letter-spacing: 1.6px; }
+.promo-admin-layout { display: grid; grid-template-columns: minmax(320px, 0.9fr) minmax(0, 1.1fr); gap: 22px; align-items: start; }
+.promo-editor,
+.promo-library {
+  min-width: 0;
+  padding: 22px;
+  border: 1px solid var(--border);
+  border-radius: 22px;
+  background: var(--card-bg);
+  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.16);
+  backdrop-filter: blur(18px);
+}
+.promo-editor-heading { gap: 12px; margin-bottom: 22px; }
+.promo-editor-heading h2,
+.promo-library-heading h2 { margin: 0 0 4px; font-size: 18px; }
+.promo-editor-icon { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 14px; color: var(--primary); background: rgba(255, 107, 0, 0.13); }
+.promo-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.promo-field { display: grid; gap: 7px; margin-bottom: 14px; color: var(--gray); font-size: 12px; font-weight: 700; }
+.promo-field > span { display: flex; justify-content: space-between; gap: 12px; }
+.promo-field small { color: #7f8aa0; font-size: 10px; font-weight: 500; }
+.promo-field input,
+.promo-field select,
+.promo-locale-row input {
+  width: 100%;
+  min-width: 0;
+  padding: 11px 12px;
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  outline: none;
+  color: var(--white);
+  background: rgba(4, 10, 22, 0.42);
+}
+.promo-field input:focus,
+.promo-field select:focus,
+.promo-locale-row input:focus { border-color: rgba(255, 107, 0, 0.8); }
+.promo-field select option { color: #111; }
+.promo-file-input { padding: 8px !important; }
+.promo-image-preview { position: relative; width: 100%; margin: -2px 0 18px; border: 1px solid var(--border); border-radius: 14px; background-position: center; background-size: cover; }
+.promo-image-preview.banner { aspect-ratio: 2.45 / 1; }
+.promo-image-preview.story { width: 112px; aspect-ratio: 1; border-radius: 50%; }
+.promo-image-preview span { position: absolute; right: 8px; bottom: 8px; padding: 5px 8px; border-radius: 8px; color: #fff; background: rgba(0, 0, 0, 0.68); font-size: 10px; }
+.promo-locale-fields { margin: 4px 0 16px; }
+.promo-locale-fields h3 { margin-bottom: 10px; color: var(--gray); font-size: 12px; }
+.promo-locale-row { display: grid; grid-template-columns: 36px minmax(0, 1fr) minmax(0, 1fr); gap: 8px; align-items: center; margin-bottom: 8px; }
+.promo-locale-row b { color: var(--primary); font-size: 10px; }
+.promo-locale-row input { padding: 9px 10px; font-size: 12px; }
+.promo-active-toggle { display: flex; align-items: center; gap: 9px; margin: 4px 0 18px; color: var(--gray); font-size: 13px; }
+.promo-active-toggle input { accent-color: var(--primary); }
+.promo-form-actions { justify-content: flex-end; gap: 10px; }
+.promo-form-actions .btn,
+.promo-admin-header > .btn { display: inline-flex; align-items: center; gap: 8px; }
+.promo-library-heading { padding-bottom: 17px; border-bottom: 1px solid var(--border); }
+.promo-library-heading > span { padding: 6px 10px; border-radius: 20px; color: var(--success); background: rgba(16, 185, 129, 0.12); font-size: 11px; font-weight: 800; white-space: nowrap; }
+.promo-state { display: grid; gap: 12px; justify-items: start; padding: 40px 12px; color: var(--gray); font-size: 13px; }
+.promo-empty { min-height: 230px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; color: var(--gray); text-align: center; }
+.promo-empty svg { color: var(--primary); opacity: 0.75; }
+.promo-empty strong { color: var(--white); }
+.promo-empty span { max-width: 280px; font-size: 12px; line-height: 1.6; }
+.promo-error { color: var(--error); }
+.promo-record-list { display: grid; gap: 10px; padding-top: 14px; }
+.promo-record { min-width: 0; gap: 12px; padding: 10px; border: 1px solid var(--border); border-radius: 14px; background: rgba(2, 8, 20, 0.2); }
+.promo-record.inactive { opacity: 0.58; }
+.promo-record > img { width: 74px; height: 64px; flex: 0 0 auto; border-radius: 10px; object-fit: cover; background: rgba(255, 255, 255, 0.05); }
+.promo-record-info { display: grid; flex: 1; min-width: 0; gap: 5px; }
+.promo-record-info > strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+.promo-record-info > small { color: var(--gray); font-size: 10px; }
+.promo-record-meta { gap: 8px; color: var(--gray); font-size: 10px; }
+.promo-kind { color: #fff; font-size: 9px; font-weight: 900; letter-spacing: 0.5px; }
+.promo-kind.story { color: #f49aff; }
+.promo-kind.banner { color: #ffbd73; }
+.promo-record-actions { gap: 3px; }
+.promo-icon-btn { display: grid; place-items: center; width: 32px; height: 32px; border: 0; border-radius: 9px; color: var(--gray); background: transparent; cursor: pointer; }
+.promo-icon-btn:hover { color: var(--white); background: rgba(255, 255, 255, 0.08); }
+.promo-icon-btn.danger:hover { color: var(--error); background: rgba(239, 68, 68, 0.12); }
+.promo-icon-btn:disabled { opacity: 0.4; cursor: wait; }
+
+@media (max-width: 1000px) {
+  .promo-admin-layout { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (max-width: 600px) {
+  .promo-admin { padding: 20px 12px 32px; }
+  .promo-editor, .promo-library { padding: 16px; border-radius: 17px; }
+  .promo-admin-header { align-items: flex-start; }
+  .promo-admin-header > .btn { padding: 8px; font-size: 11px; }
+  .promo-locale-row { grid-template-columns: 30px minmax(0, 1fr); }
+  .promo-locale-row input:last-child { grid-column: 2; }
+  .promo-record { gap: 8px; padding: 8px; }
+  .promo-record > img { width: 56px; height: 54px; }
+  .promo-record-actions { gap: 0; }
+  .promo-icon-btn { width: 28px; }
+}

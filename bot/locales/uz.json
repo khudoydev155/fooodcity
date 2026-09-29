@@ -1,0 +1,21 @@
+{
+  "welcome": "Assalomu alaykum! 👋 Food City'ga xush kelibsiz!",
+  "choose_language": "Tilni tanlang:",
+  "menu_button": "🍽 Menuni ko'rish",
+  "order_confirmed": "✅ Buyurtmangiz qabul qilindi!",
+  "order_status_new": "🆕 Yangi",
+  "order_status_confirmed": "✅ Tasdiqlandi",
+  "order_status_cooking": "👨‍🍳 Tayyorlanmoqda",
+  "order_status_delivering": "🛵 Yo'lda",
+  "order_status_delivered": "✅ Yetkazildi",
+  "order_status_cancelled": "❌ Bekor qilindi",
+  "points_earned": "🎁 +{points} ball oldingiz!",
+  "points_balance": "💎 Balansingiz: {points} ball",
+  "coupon_valid": "✅ Kupon qo'llanildi! -{discount}",
+  "coupon_invalid": "❌ Kupon yaroqsiz yoki muddati o'tgan",
+  "profile_info": "👤 {name}\n📦 Buyurtmalar: {orders}\n💰 Jami: {spent}\n💎 Ballar: {points}",
+  "blocked": "Siz bloklangansiz.",
+  "no_permission": "Ruxsat yo'q",
+  "not_admin": "Siz admin emassiz.",
+  "new_food_added": "Yangi taom qo'shildi!"
+}

@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# IDE
+.vscode/
+.idea/
+
+# Environment Variables
+.env
+.env.*
+!.env.example
+
+# Environment Variables production
+.env.prod
+.env.prod.*
+!.env.prod.example
+
+#node modules
+node_modules
