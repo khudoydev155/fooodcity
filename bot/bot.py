@@ -12,7 +12,7 @@ from bot.middlewares.auth import AuthMiddleware
 from bot.middlewares.throttle import ThrottleMiddleware
 from bot.middlewares.i18n import I18nMiddleware
 from bot.middlewares.license import LicenseCheckMiddleware
-from bot.api.router import routes, setup_cors
+from bot.api.router import MAX_RECEIPT_UPLOAD_BYTES, routes, setup_cors
 from bot.api import admin_api  # noqa: F401 — import triggers /api/admin/analytics route registration
 from bot.api import promo_api  # noqa: F401 — registers public and admin promo routes
 from aiogram.types import ErrorEvent
@@ -99,7 +99,7 @@ def main():
     dp.shutdown.register(on_shutdown)
     
     # Setup Aiohttp App
-    app = web.Application()
+    app = web.Application(client_max_size=MAX_RECEIPT_UPLOAD_BYTES + 1024 * 1024)
     # Register middlewares
     from bot.api.security import security_middleware
     from bot.utils.rate_limiter import rate_limit_middleware

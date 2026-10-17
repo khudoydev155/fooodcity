@@ -28,6 +28,8 @@ export interface AdminOrder {
   items: AdminOrderItem[] | null;
   users?: { full_name?: string | null; username?: string | null; phone?: string | null } | null;
   delivery_address?: string | null;
+  location?: { lat?: number; lon?: number; latitude?: number; longitude?: number } | null;
+  subtotal?: number | null;
   delivery_fee?: number | null;
   discount?: number | null;
   note?: string | null;

@@ -83,7 +83,6 @@ class DatabaseManager:
                 self.client.table("users")
                 .update({"phone": phone, "phone_verified_at": now})
                 .eq("id", user_id)
-                .select("id")
                 .execute
             )
             return bool(res.data)
@@ -398,7 +397,7 @@ class DatabaseManager:
     async def get_admin_orders(self, status=None, search=None, limit=20, offset=0, start_date=None, end_date=None):
         def build_base():
             q = self.client.table("orders").select(
-                "*, users!orders_user_id_fkey(full_name, username)"
+                "*, users!orders_user_id_fkey(full_name, username, phone)"
             ).order("created_at", desc=True)
             if status:
                 if isinstance(status, list):
@@ -449,7 +448,11 @@ class DatabaseManager:
 
                 user_res = await self._run_sync(
                     self.client.table("users").select("id")
-                        .or_(f"full_name.ilike.%{safe_search}%,username.ilike.%{safe_search}%")
+                        .or_(
+                            f"full_name.ilike.%{safe_search}%,"
+                            f"username.ilike.%{safe_search}%,"
+                            f"phone.ilike.%{safe_search}%"
+                        )
                         .execute
                 )
                 matched_user_ids = [u["id"] for u in (user_res.data or [])]
@@ -748,7 +751,28 @@ class DatabaseManager:
 
     async def confirm_payment(self, order_id: str, admin_id: int) -> bool:
         try:
-            confirmed_by = admin_id if admin_id > 0 else None
+            order_res = await self._run_sync(
+                self.client.table("orders")
+                    .select("id")
+                    .eq("id", order_id)
+                    .limit(1)
+                    .execute
+            )
+            if not order_res.data:
+                return False
+
+            confirmed_by = None
+            if admin_id > 0:
+                admin_res = await self._run_sync(
+                    self.client.table("users")
+                        .select("id")
+                        .eq("id", admin_id)
+                        .limit(1)
+                        .execute
+                )
+                if admin_res.data:
+                    confirmed_by = admin_id
+
             res = await self._run_sync(
                 self.client.table("orders")
                     .update({
@@ -757,17 +781,37 @@ class DatabaseManager:
                         "payment_confirmed_at": datetime.utcnow().isoformat(),
                     })
                     .eq("id", order_id)
-                    .select("id")
                     .execute
             )
-            return bool(res.data)
+            return res is not None
         except Exception:
             logger.exception("confirm_payment(%s) failed", order_id)
             raise
 
     async def reject_payment(self, order_id: str, admin_id: int) -> bool:
         try:
-            confirmed_by = admin_id if admin_id > 0 else None
+            order_res = await self._run_sync(
+                self.client.table("orders")
+                    .select("id")
+                    .eq("id", order_id)
+                    .limit(1)
+                    .execute
+            )
+            if not order_res.data:
+                return False
+
+            confirmed_by = None
+            if admin_id > 0:
+                admin_res = await self._run_sync(
+                    self.client.table("users")
+                        .select("id")
+                        .eq("id", admin_id)
+                        .limit(1)
+                        .execute
+                )
+                if admin_res.data:
+                    confirmed_by = admin_id
+
             res = await self._run_sync(
                 self.client.table("orders")
                     .update({
@@ -776,10 +820,9 @@ class DatabaseManager:
                         "payment_confirmed_at": datetime.utcnow().isoformat(),
                     })
                     .eq("id", order_id)
-                    .select("id")
                     .execute
             )
-            return bool(res.data)
+            return res is not None
         except Exception:
             logger.exception("reject_payment(%s) failed", order_id)
             raise
@@ -834,6 +877,16 @@ class DatabaseManager:
 
     async def assign_courier(self, order_id: str, courier_id: int) -> bool:
         try:
+            order_res = await self._run_sync(
+                self.client.table("orders")
+                    .select("id")
+                    .eq("id", order_id)
+                    .limit(1)
+                    .execute
+            )
+            if not order_res.data:
+                return False
+
             res = await self._run_sync(
                 self.client.table("orders")
                     .update({
@@ -841,10 +894,9 @@ class DatabaseManager:
                         "courier_assigned_at": datetime.utcnow().isoformat(),
                     })
                     .eq("id", order_id)
-                    .select("id")
                     .execute
             )
-            return bool(res.data)
+            return res is not None
         except Exception:
             logger.exception(f"assign_courier({order_id}, {courier_id}) failed")
             raise
@@ -854,7 +906,8 @@ class DatabaseManager:
             res = await self._run_sync(
                 self.client.table("orders")
                     .select(
-                        "id,total,items,delivery_address,note,payment_method,payment_status,"
+                        "id,total,subtotal,delivery_fee,discount,items,delivery_address,location,note,"
+                        "payment_method,payment_status,"
                         "users!orders_user_id_fkey(full_name,phone)"
                     )
                     .eq("id", order_id)

@@ -25,10 +25,21 @@ export interface TgLocationManager {
   getLocation(callback: (data: TgLocationData | null) => void): void;
 }
 
+export interface TgSafeAreaInset {
+  top: number;
+  right: number;
+  bottom: number;
+  left: number;
+}
+
 export interface TelegramWebApp {
   ready(): void;
   expand(): void;
   requestFullscreen?: () => void;
+  safeAreaInset?: TgSafeAreaInset;
+  contentSafeAreaInset?: TgSafeAreaInset;
+  onEvent?: (eventType: string, eventHandler: () => void) => void;
+  offEvent?: (eventType: string, eventHandler: () => void) => void;
   initData: string;
   initDataUnsafe: { user?: TgUser };
   HapticFeedback: {

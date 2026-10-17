@@ -4,6 +4,7 @@ import hmac
 from html import escape
 import json
 import time
+import uuid
 from urllib.parse import parse_qsl, quote
 from aiohttp import web
 from bot.config import config
@@ -16,6 +17,92 @@ routes = web.RouteTableDef()
 
 # initData eng ko'pi bilan shu muddat davomida haqiqiy hisoblanadi (replay hujumidan himoya)
 INIT_DATA_MAX_AGE = 86400  # 24 soat
+
+
+def format_admin_order_notification(order: dict, title: str) -> str:
+    customer = order.get("users") or {}
+    customer_name = escape(str(customer.get("full_name") or "Mijoz"))
+    username = str(customer.get("username") or "").strip()
+    phone = str(customer.get("phone") or "").strip()
+    phone_text = (
+        f'<a href="tel:{quote(phone, safe="+")}">{escape(phone)}</a>'
+        if phone
+        else "Ulanmagan"
+    )
+    if username:
+        customer_name += f" (@{escape(username.lstrip('@'))})"
+
+    address = str(order.get("delivery_address") or "").strip()
+    location = order.get("location")
+    map_url = ""
+    if isinstance(location, dict):
+        latitude = location.get("lat", location.get("latitude"))
+        longitude = location.get("lon", location.get("longitude"))
+        if latitude is not None and longitude is not None:
+            try:
+                map_url = f"https://maps.google.com/?q={float(latitude)},{float(longitude)}"
+            except (TypeError, ValueError):
+                map_url = ""
+    is_pickup = address.lower() in {"olib ketish", "pickup"}
+    if not map_url and address and not is_pickup:
+        map_url = f"https://www.google.com/maps/search/?api=1&query={quote(address, safe='')}"
+    map_href = escape(map_url, quote=True)
+    if address and not is_pickup:
+        address_text = f'<a href="{map_href}">{escape(address)}</a>' if map_url else escape(address)
+    elif map_url:
+        address_text = f'<a href="{map_href}">Joylashuv xaritada</a>'
+    else:
+        address_text = escape(address or "Ko'rsatilmagan")
+    if address and is_pickup:
+        address_text = escape(address)
+
+    items = order.get("items") or []
+    item_lines = []
+    for item in items[:20]:
+        name = str(item.get("name_uz") or item.get("name") or "Taom")[:90]
+        quantity = max(1, int(item.get("qty") or 1))
+        price = int(float(item.get("price") or 0))
+        item_lines.append(
+            f"• {escape(name)} × {quantity} — {price * quantity:,} so'm"
+        )
+    if len(items) > 20:
+        item_lines.append(f"… yana {len(items) - 20} ta mahsulot")
+
+    payment_method = order.get("payment_method") or "cash"
+    if payment_method == "card_transfer":
+        payment_status = order.get("payment_status") or "pending"
+        payment_label = {
+            "paid": "Karta o'tkazmasi — to'langan",
+            "rejected": "Karta o'tkazmasi — chek rad etilgan",
+            "pending": "Karta o'tkazmasi — tasdiq kutilmoqda",
+        }.get(payment_status, "Karta o'tkazmasi")
+    else:
+        payment_label = "Naqd pul"
+
+    subtotal = int(float(order.get("subtotal") or 0))
+    delivery_fee = int(float(order.get("delivery_fee") or 0))
+    discount = int(float(order.get("discount") or 0))
+    total = int(float(order.get("total") or 0))
+    note = str(order.get("note") or "").strip()
+
+    message = (
+        f"{title}\n\n"
+        f"🔖 Buyurtma: <b>#{escape(str(order.get('id') or ''))}</b>\n"
+        f"👤 Mijoz: {customer_name}\n"
+        f"☎️ Aloqa: {phone_text}\n"
+        f"📍 Manzil: {address_text}\n\n"
+        "<b>🧺 Buyurtma tarkibi:</b>\n"
+        + ("\n".join(item_lines) if item_lines else "• Tarkib topilmadi")
+        + "\n\n"
+        f"Mahsulotlar: {subtotal:,} so'm\n"
+        f"Yetkazib berish: {delivery_fee:,} so'm\n"
+        + (f"Chegirma: −{discount:,} so'm\n" if discount else "")
+        + f"💰 <b>Jami: {total:,} so'm</b>\n"
+        + f"💳 To'lov: {escape(payment_label)}"
+        + (f"\n📝 Izoh: {escape(note[:500])}" if note else "")
+    )
+    return message
+
 
 def validate_init_data(init_data: str, bot_token: str) -> bool:
     """Validates data received from the Telegram Mini App."""
@@ -451,18 +538,16 @@ async def create_order_api(request: web.Request):
         try:
             bot = request.app.get('bot')
             if bot and config.ADMIN_CHAT_ID:
-                pay_label = "💳 Karta orqali o'tkazma" if order.get("payment_method") == "card_transfer" else "💵 Naqd pul"
+                order_details = await db.get_order_for_courier_notification(order["id"])
+                if not order_details:
+                    raise LookupError(f"New order {order['id']} could not be reloaded for admin notification")
                 await bot.send_message(
                     config.ADMIN_CHAT_ID,
-                    f"🔔 <b>Yangi buyurtma!</b>\n\n"
-                    f"🔖 ID: <b>#{order['id']}</b>\n"
-                    f"💰 Jami: <b>{order['total']:,} so'm</b>\n"
-                    f"{pay_label}\n"
-                    f"📍 {payload.get('delivery_address', '') or '—'}",
+                    format_admin_order_notification(order_details, "🔔 <b>Yangi buyurtma!</b>"),
                     parse_mode="HTML",
                 )
-        except Exception as e:
-            logger.warning(f"new-order admin notify failed: {e}")
+        except Exception:
+            logger.exception("New-order admin notification failed for order %s", order.get("id"))
 
         return web.json_response({"success": True, "order": order})
     except Exception as e:
@@ -640,44 +725,9 @@ async def assign_courier_api(request: web.Request):
         if not bot:
             raise RuntimeError("Telegram bot is unavailable")
 
-        customer = order.get("users") or {}
-        customer_name = escape(str(customer.get("full_name") or "Mijoz"))
-        phone = escape(str(customer.get("phone") or "Ko'rsatilmagan"))
-        address = str(order.get("delivery_address") or "").strip()
-        if address:
-            address_text = (
-                f'<a href="https://www.google.com/maps/search/?api=1&query={quote(address)}">'
-                f'{escape(address)}</a>'
-            )
-        else:
-            address_text = "Ko'rsatilmagan"
-
-        items = order.get("items") or []
-        item_lines = [
-            f"• {escape(str(item.get('name_uz') or item.get('name') or 'Taom'))} × "
-            f"{max(1, int(item.get('qty') or 1))}"
-            for item in items[:30]
-        ]
-        if len(items) > 30:
-            item_lines.append(f"… va yana {len(items) - 30} ta mahsulot")
-        payment_method = order.get("payment_method") or "cash"
-        payment_label = "Karta orqali" if payment_method == "card_transfer" else "Naqd pul"
-        payment_status = order.get("payment_status")
-        if payment_status == "paid":
-            payment_label += " — to'langan"
-        elif payment_method == "card_transfer":
-            payment_label += " — admin tasdig'ini kutmoqda"
-
-        message = (
-            "🛵 <b>Sizga yangi buyurtma biriktirildi</b>\n\n"
-            f"🔖 Buyurtma: <b>#{escape(order_id)}</b>\n"
-            f"👤 Mijoz: {customer_name}\n"
-            f"☎️ Telefon: {phone}\n"
-            f"📍 Manzil: {address_text}\n"
-            f"💳 To'lov: {escape(payment_label)}\n"
-            f"💰 Jami: {int(order.get('total') or 0):,} so'm\n"
-            + (f"\n🧺 <b>Buyurtma tarkibi:</b>\n" + "\n".join(item_lines) if item_lines else "")
-            + (f"\n\n📝 Izoh: {escape(str(order['note']))}" if order.get("note") else "")
+        message = format_admin_order_notification(
+            order,
+            "🛵 <b>Sizga yangi buyurtma biriktirildi</b>",
         )
         await bot.send_message(courier_id, message, parse_mode="HTML")
         notification_sent = True
@@ -1097,36 +1147,56 @@ async def upload_payment_receipt_api(request: web.Request):
             if part.name == "receipt":
                 field = part
                 break
-            await part.read()
         if field is None:
             return web.json_response({"error": "Missing 'receipt' field in form data"}, status=400)
-        raw_bytes = await field.read(decode=False)
+        raw_bytes = bytearray()
+        while True:
+            chunk = await field.read_chunk(size=64 * 1024)
+            if not chunk:
+                break
+            if len(raw_bytes) + len(chunk) > MAX_RECEIPT_UPLOAD_BYTES:
+                return web.json_response({
+                    "error": f"Fayl juda katta (max {MAX_RECEIPT_UPLOAD_BYTES // (1024*1024)} MB)"
+                }, status=413)
+            raw_bytes.extend(chunk)
+    except web.HTTPRequestEntityTooLarge:
+        return web.json_response({
+            "error": f"Fayl juda katta (max {MAX_RECEIPT_UPLOAD_BYTES // (1024*1024)} MB)"
+        }, status=413)
     except Exception as exc:
         return web.json_response({"error": "Failed to read multipart data", "detail": str(exc)}, status=400)
 
     if len(raw_bytes) == 0:
         return web.json_response({"error": "Empty file uploaded"}, status=400)
-    if len(raw_bytes) > MAX_RECEIPT_UPLOAD_BYTES:
-        return web.json_response({"error": f"Fayl juda katta (max {MAX_RECEIPT_UPLOAD_BYTES // (1024*1024)} MB)"}, status=413)
+    receipt_bytes = bytes(raw_bytes)
 
     # Haqiqiy rasm ekanini tekshiramiz (buzuq/boshqa fayl turlarini rad etish uchun)
     try:
         from PIL import Image
         import io
-        img = await asyncio.to_thread(lambda: Image.open(io.BytesIO(raw_bytes)))
-        await asyncio.to_thread(img.verify)
-        ext = (img.format or "jpg").lower()
+
+        def validate_receipt_image() -> tuple[str, str]:
+            with Image.open(io.BytesIO(receipt_bytes)) as image:
+                image_format = image.format
+                if image_format not in {"JPEG", "PNG", "WEBP"}:
+                    raise ValueError("Unsupported receipt image format")
+                image.verify()
+            extension = "jpg" if image_format == "JPEG" else image_format.lower()
+            mime_type = "image/jpeg" if image_format == "JPEG" else f"image/{extension}"
+            return extension, mime_type
+
+        ext, content_type = await asyncio.to_thread(validate_receipt_image)
     except Exception:
-        return web.json_response({"error": "Fayl haqiqiy rasm emas yoki buzilgan"}, status=400)
+        return web.json_response({
+            "error": "Faqat JPG, PNG yoki WEBP formatidagi haqiqiy rasm yuklang"
+        }, status=400)
 
     try:
-        timestamp = int(time.time())
-        path = f"payment-receipts/{order_id}_{timestamp}.{ext}"
-        content_type = f"image/{ext}"
+        path = f"payment-receipts/{uuid.uuid4().hex}.{ext}"
         await asyncio.to_thread(
             lambda: db.client.storage.from_(config.STORAGE_BUCKET).upload(
-                path=path, file=raw_bytes,
-                file_options={"content-type": content_type, "upsert": "true"},
+                path=path, file=receipt_bytes,
+                file_options={"content-type": content_type, "x-upsert": "true"},
             )
         )
         receipt_url = db.client.storage.from_(config.STORAGE_BUCKET).get_public_url(path)
@@ -1142,12 +1212,30 @@ async def upload_payment_receipt_api(request: web.Request):
     try:
         bot = request.app.get('bot')
         if bot and config.ADMIN_CHAT_ID:
+            order_details = await db.get_order_for_courier_notification(order_id)
+            customer = (order_details or {}).get("users") or {}
+            customer_name = escape(str(customer.get("full_name") or "Mijoz"))
+            phone = str(customer.get("phone") or "").strip()
+            caption = f"💳 <b>#{escape(order_id)} — to'lov cheki</b>\n👤 {customer_name}"
+            if phone:
+                caption += f"\n☎️ {escape(phone)}"
             await bot.send_photo(
-                config.ADMIN_CHAT_ID, receipt_url,
-                caption=f"💳 Buyurtma #{order_id} uchun to'lov cheki yuklandi.\nAdmin panelda tekshirib tasdiqlang.",
+                config.ADMIN_CHAT_ID,
+                receipt_url,
+                caption=caption,
+                parse_mode="HTML",
             )
-    except Exception as exc:
-        logger.warning(f"payment-receipt admin notify failed: {exc}")
+            if order_details:
+                await bot.send_message(
+                    config.ADMIN_CHAT_ID,
+                    format_admin_order_notification(
+                        order_details,
+                        "🧾 <b>Chek qabul qilindi — buyurtma tafsilotlari</b>",
+                    ),
+                    parse_mode="HTML",
+                )
+    except Exception:
+        logger.exception("Payment receipt admin notification failed for order %s", order_id)
 
     return web.json_response({"success": True, "receipt_url": receipt_url})
 
@@ -1160,7 +1248,10 @@ async def confirm_payment_api(request: web.Request):
         ok = await db.confirm_payment(order_id, payload.get("id", 0) if payload else 0)
     except Exception:
         logger.exception("Admin payment confirmation failed for order %s", order_id)
-        return web.json_response({"error": "To'lov tasdiqlanmadi. Bazadagi to'lov ustunlarini tekshiring."}, status=503)
+        return web.json_response(
+            {"error": "To'lovni bazaga yozib bo'lmadi. Aniq sabab server jurnalida saqlandi."},
+            status=503,
+        )
     if not ok:
         return web.json_response({"error": "Buyurtma topilmadi"}, status=404)
     return web.json_response({"success": True})

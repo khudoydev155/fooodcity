@@ -137,6 +137,28 @@ export default function App() {
     localStorage.setItem('foodcity-theme', theme);
   }, [theme]);
 
+  useEffect(() => {
+    const updateSafeArea = () => {
+      const root = document.documentElement.style;
+      const safeArea = tg.safeAreaInset;
+      const contentSafeArea = tg.contentSafeAreaInset;
+      root.setProperty('--telegram-safe-area-top', `${safeArea?.top ?? 0}px`);
+      root.setProperty('--telegram-safe-area-right', `${safeArea?.right ?? 0}px`);
+      root.setProperty('--telegram-safe-area-bottom', `${safeArea?.bottom ?? 0}px`);
+      root.setProperty('--telegram-safe-area-left', `${safeArea?.left ?? 0}px`);
+      root.setProperty('--telegram-content-safe-area-top', `${contentSafeArea?.top ?? 0}px`);
+      root.setProperty('--telegram-content-safe-area-bottom', `${contentSafeArea?.bottom ?? 0}px`);
+    };
+    const eventNames = ['safeAreaChanged', 'contentSafeAreaChanged', 'viewportChanged'];
+    updateSafeArea();
+    eventNames.forEach(eventName => tg.onEvent?.(eventName, updateSafeArea));
+    window.addEventListener('resize', updateSafeArea);
+    return () => {
+      eventNames.forEach(eventName => tg.offEvent?.(eventName, updateSafeArea));
+      window.removeEventListener('resize', updateSafeArea);
+    };
+  }, []);
+
   const showToast = useCallback((msg: string) => {
     setToast({ msg, show: true });
     clearTimeout(toastTimer.current);
@@ -1419,6 +1441,12 @@ export default function App() {
                 <div style={{ color: '#00C853', fontWeight: 700 }}>✅ To'lov qabul qilindi</div>
               ) : (
                 <div>
+                  {(!trackingPayment.receiptUrl || trackingPayment.status === 'rejected') && (
+                    <div className="receipt-instructions" role="note">
+                      <strong>Chek yuborish zarur</strong>
+                      <span>Avval ko‘rsatilgan kartaga to‘lov qiling, so‘ng chek skrinshotini tanlab yuboring.</span>
+                    </div>
+                  )}
                   <div style={{ color: '#fff', fontWeight: 700, marginBottom: 8 }}>
                     {trackingPayment.status === 'rejected'
                       ? "❌ Chek qabul qilinmadi. Iltimos, to'g'ri chekni qayta yuboring."
@@ -1460,7 +1488,7 @@ export default function App() {
                         ref={receiptInputRef}
                         className="receipt-file-input"
                         type="file"
-                        accept="image/*"
+                        accept="image/jpeg,image/png,image/webp"
                         aria-label="To'lov chekini tanlash"
                         disabled={receiptUploading}
                         onChange={e => {

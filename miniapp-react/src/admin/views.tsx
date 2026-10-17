@@ -734,22 +734,38 @@ export function Orders({ ctx }: { ctx: AdminCtx }) {
   return (
     <>
       <div className="page-title">
-        <span>📦 Buyurtmalar</span>
+        <div className="orders-heading">
+          <span>📦 Buyurtmalar</span>
+          <small>Yangi zakazlar shu yerga tushadi va har 10 soniyada yangilanadi</small>
+        </div>
         <div className="orders-toolbar">
+          <span className="orders-live-indicator"><i /> Jonli yangilanish</span>
           <button className="btn btn-outline sm" disabled={refreshing} onClick={() => { setRefreshing(true); void loadOrders(); }}>
             {refreshing ? 'Yangilanmoqda...' : '↻ Yangilash'}
           </button>
-          <input type="search" className="form-input" placeholder="ID yoki ism bo'yicha qidirish..."
+          <input type="search" className="form-input" aria-label="Buyurtmalarni qidirish" placeholder="ID, ism, username yoki telefon..."
             value={query} onChange={e => setQuery(e.target.value)} />
         </div>
       </div>
       <div className="tabs">
         {ORDER_TABS.map(t => (
-          <div key={t.status} className={`tab${status === t.status ? ' active' : ''}`} onClick={() => setStatus(t.status)}>{t.label}</div>
+          <button
+            key={t.status}
+            type="button"
+            className={`tab${status === t.status ? ' active' : ''}`}
+            aria-pressed={status === t.status}
+            onClick={() => setStatus(t.status)}
+          >
+            {t.label}
+          </button>
         ))}
       </div>
       <div className="table-container">
-        {orders === null && !loadError && [1, 2, 3, 4, 5].map(i => <div key={i} className="skeleton" style={{ height: 60, margin: 10 }}></div>)}
+        {orders === null && !loadError && (
+          <div className="orders-loading-grid" aria-label="Buyurtmalar yuklanmoqda">
+            {[1, 2, 3].map(i => <div key={i} className="skeleton orders-skeleton" />)}
+          </div>
+        )}
         {orders === null && loadError && (
           <div className="admin-data-error" role="alert">
             Buyurtmalarni yuklab bo'lmadi.
@@ -762,28 +778,112 @@ export function Orders({ ctx }: { ctx: AdminCtx }) {
             <button className="btn btn-outline sm" onClick={() => { setRefreshing(true); void loadOrders(); }}>Qayta urinish</button>
           </div>
         )}
-        {Array.isArray(orders) && (
-          <table>
-            <thead><tr><th>ID</th><th>Mijoz</th><th>Mahsulot</th><th>Jami</th><th>To'lov</th><th>Status</th><th>Vaqt</th><th></th></tr></thead>
-            <tbody>
-              {orders.length === 0 ? (
-                <tr><td colSpan={8} style={{ textAlign: 'center' }}>Hech narsa topilmadi</td></tr>
-              ) : orders.map(o => (
-                <tr key={o.id} onClick={() => showOrderDetail(o.id)} style={{ cursor: 'pointer' }}>
-                  <td style={{ color: 'var(--primary)' }}>{o.id}</td>
-                  <td>{o.users?.full_name || "Noma'lum"}</td>
-                  <td>{(o.items || []).length} ta mahsulot</td>
-                  <td>{(o.total || 0).toLocaleString()} sum</td>
-                  <td><PaymentBadge order={o} /></td>
-                  <td><span className={`badge badge-${o.status}`}>{o.status}</span></td>
-                  <td>{formatTimeLocal(o.created_at)}</td>
-                  <td><button className="btn btn-outline sm">Detail</button></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        {Array.isArray(orders) && orders.length === 0 && (
+          <div className="orders-empty-state">
+            <span>📭</span>
+            <strong>Bu bo‘limda buyurtma yo‘q</strong>
+            <p>Yangi zakazlar kelishi bilan shu ro‘yxatda ko‘rinadi.</p>
+          </div>
         )}
       </div>
+      {Array.isArray(orders) && orders.length > 0 && (
+        <div className="orders-card-grid" aria-label="Buyurtmalar ro'yxati">
+          {orders.map(order => {
+            const orderItems = order.items || [];
+            const itemCount = orderItems.reduce((total, item) => total + Math.max(1, Number(item.qty) || 1), 0);
+            const customerName = order.users?.full_name || order.users?.username || "Noma'lum mijoz";
+            const statusInfo = ORDER_STATUS_MAP[order.status] || { label: order.status, color: '#A8B4C9' };
+            const address = order.delivery_address?.trim();
+            const isPickup = Boolean(address && ['olib ketish', 'pickup'].includes(address.toLowerCase()));
+            const coordinates = order.location;
+            const latitude = coordinates?.lat ?? coordinates?.latitude;
+            const longitude = coordinates?.lon ?? coordinates?.longitude;
+            const mapUrl = latitude !== undefined && longitude !== undefined
+              ? `https://maps.google.com/?q=${latitude},${longitude}`
+              : address && !isPickup
+                ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`
+                : '';
+            return (
+              <article key={order.id} className={`admin-order-card${order.status === 'new' ? ' is-new' : ''}`}>
+                <div className="admin-order-card-top">
+                  <div>
+                    <span className="admin-order-number">#{order.id}</span>
+                    <time dateTime={order.created_at}>
+                      {new Date(order.created_at).toLocaleString('uz-UZ', {
+                        day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
+                      })}
+                    </time>
+                  </div>
+                  <span
+                    className={`badge badge-${order.status}`}
+                    style={{ color: statusInfo.color, backgroundColor: `${statusInfo.color}20` }}
+                  >
+                    {statusInfo.label}
+                  </span>
+                </div>
+
+                <div className="admin-order-customer">
+                  <span className="admin-order-avatar" aria-hidden="true">👤</span>
+                  <div>
+                    <strong>{customerName}</strong>
+                    {order.users?.username && order.users.full_name && <small>@{order.users.username}</small>}
+                  </div>
+                </div>
+
+                <div className="admin-order-contact-row">
+                  {order.users?.phone ? (
+                    <a href={`tel:${order.users.phone}`} onClick={event => event.stopPropagation()}>
+                      ☎️ {order.users.phone}
+                    </a>
+                  ) : (
+                    <span className="admin-order-muted">☎️ Telefon kiritilmagan</span>
+                  )}
+                  {address && (
+                    mapUrl ? (
+                      <a href={mapUrl} target="_blank" rel="noreferrer" onClick={event => event.stopPropagation()}>
+                        📍 {isPickup ? 'Olib ketish' : 'Xaritada manzil'}
+                      </a>
+                    ) : <span>📍 {address}</span>
+                  )}
+                </div>
+
+                <div className="admin-order-items">
+                  <div className="admin-order-section-label">BUYURTMA TARKIBI <span>{itemCount} ta</span></div>
+                  {orderItems.slice(0, 3).map((item, index) => (
+                    <div className="admin-order-item" key={`${order.id}-${index}`}>
+                      <span className="admin-order-item-name">
+                        <span>{item.emoji || '🍽️'}</span>
+                        {item.name_uz || item.name || item.name_ru || 'Taom'}
+                        <b>×{Math.max(1, Number(item.qty) || 1)}</b>
+                      </span>
+                      <span>{((Number(item.price) || 0) * Math.max(1, Number(item.qty) || 1)).toLocaleString('uz-UZ')} so‘m</span>
+                    </div>
+                  ))}
+                  {orderItems.length > 3 && <div className="admin-order-more">yana {orderItems.length - 3} xil mahsulot</div>}
+                  {orderItems.length === 0 && <div className="admin-order-muted">Mahsulot tafsiloti mavjud emas</div>}
+                  {order.note && <div className="admin-order-note">📝 {order.note}</div>}
+                </div>
+
+                <div className="admin-order-card-bottom">
+                  <div className="admin-order-payment">
+                    <PaymentBadge order={order} />
+                    {order.payment_receipt_url && (
+                      <a href={order.payment_receipt_url} target="_blank" rel="noreferrer" onClick={event => event.stopPropagation()}>
+                        Chekni ko‘rish ↗
+                      </a>
+                    )}
+                  </div>
+                  <strong className="admin-order-total">{(Number(order.total) || 0).toLocaleString('uz-UZ')} <small>so‘m</small></strong>
+                </div>
+
+                <button type="button" className="admin-order-details" onClick={() => showOrderDetail(order.id)}>
+                  Buyurtma tafsilotlari <span aria-hidden="true">→</span>
+                </button>
+              </article>
+            );
+          })}
+        </div>
+      )}
       {canLoadMore && (
         <div style={{ textAlign: 'center', marginTop: '1rem' }}>
           <button className="btn btn-outline" onClick={() => setPage(p => p + 1)}>Yana yuklash</button>

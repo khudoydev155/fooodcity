@@ -1,4 +1,12 @@
 :root {
+  --telegram-safe-area-top: 0px;
+  --telegram-safe-area-right: 0px;
+  --telegram-safe-area-bottom: 0px;
+  --telegram-safe-area-left: 0px;
+  --telegram-content-safe-area-top: 0px;
+  --telegram-content-safe-area-bottom: 0px;
+  --app-safe-area-top: max(env(safe-area-inset-top, 0px), var(--telegram-safe-area-top), var(--telegram-content-safe-area-top));
+  --app-safe-area-bottom: max(env(safe-area-inset-bottom, 0px), var(--telegram-safe-area-bottom), var(--telegram-content-safe-area-bottom));
   --primary: #F32227;
   --secondary: #FF4B35;
   --accent: #FFB800;
@@ -41,7 +49,8 @@ body {
   background: var(--bg);
   color: var(--text);
   min-height: 100vh;
-  padding-bottom: 90px;
+  min-height: 100dvh;
+  padding-bottom: calc(90px + var(--app-safe-area-bottom));
   overflow-x: hidden;
 }
 
@@ -464,9 +473,9 @@ body,
   justify-content: space-around;
   align-items: center;
   border-top: 1px solid var(--border);
-  padding-bottom: env(safe-area-inset-bottom);
-  padding-right: max(8px, env(safe-area-inset-right));
-  padding-left: max(8px, env(safe-area-inset-left));
+  padding-bottom: var(--app-safe-area-bottom);
+  padding-right: max(8px, env(safe-area-inset-right), var(--telegram-safe-area-right));
+  padding-left: max(8px, env(safe-area-inset-left), var(--telegram-safe-area-left));
   z-index: 100;
 }
 
@@ -690,6 +699,24 @@ body,
   color: var(--text2);
   font-size: 13px;
   line-height: 1.5;
+}
+
+.receipt-instructions {
+  display: grid;
+  gap: 3px;
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 184, 0, 0.45);
+  border-radius: 12px;
+  background: rgba(255, 184, 0, 0.12);
+  color: #fff;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.receipt-instructions strong {
+  color: #ffd166;
+  font-size: 13px;
 }
 
 .payment-card-error {
@@ -942,17 +969,17 @@ body {
   width: 100%;
   min-height: 100vh;
   min-height: 100dvh;
-  padding: 0 0 105px;
+  padding: 0 0 calc(105px + var(--app-safe-area-bottom));
   overflow: hidden;
 }
 
 .page:not(.menu-page) {
-  padding-top: max(16px, calc(env(safe-area-inset-top, 0px) + 44px));
-  padding-bottom: calc(112px + env(safe-area-inset-bottom, 0px));
+  padding-top: max(16px, calc(var(--app-safe-area-top) + 44px));
+  padding-bottom: calc(112px + var(--app-safe-area-bottom));
 }
 
 .page.tracking-page {
-  padding-top: max(72px, calc(env(safe-area-inset-top, 0px) + 52px));
+  padding-top: max(72px, calc(var(--app-safe-area-top) + 52px));
   padding-right: 16px;
   padding-left: 16px;
 }
@@ -994,7 +1021,7 @@ body {
 }
 
 .menu-page .header {
-  padding: max(12px, env(safe-area-inset-top)) 20px 20px;
+  padding: max(12px, var(--app-safe-area-top)) 20px 20px;
   margin: 0 0 16px;
   border-radius: 0 0 28px 28px;
   box-shadow: 0 14px 34px rgba(232, 0, 28, 0.18);
