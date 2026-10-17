@@ -200,6 +200,18 @@ function AppContent({ onAuth, showToast }: { onAuth: (token: string) => void; sh
   const closeModal = useCallback(() => setModal(null), []);
   const bumpRefresh = useCallback(() => setRefreshTick(t => t + 1), []);
 
+  const [isMuted, setIsMuted] = useState(() => localStorage.getItem('foodcity_admin_muted') === 'true');
+  const isMutedRef = useRef(isMuted);
+  isMutedRef.current = isMuted;
+
+  const toggleMute = () => {
+    setIsMuted(prev => {
+      const next = !prev;
+      localStorage.setItem('foodcity_admin_muted', String(next));
+      return next;
+    });
+  };
+
   useEffect(() => {
     const token = sessionStorage.getItem('admin_token');
     if (!token) return;
@@ -207,20 +219,11 @@ function AppContent({ onAuth, showToast }: { onAuth: (token: string) => void; sh
       Notification.requestPermission();
     }
 
-    // MUHIM: ilgari faqat "eng so'nggi bitta ID" saqlanib, u bilan
-    // taqqoslanardi. Agar admin ENG YANGI 'new' buyurtmani tasdiqlasa
-    // (uni 'new' holatidan chiqarsa), ro'yxatda undan OLDINGI, hali ham
-    // 'new' bo'lgan boshqa buyurtma bo'lsa — tizim uni xato ravishda
-    // "yangi buyurtma keldi" deb QAYTA ogohlantirar edi (chunki uning ID'si
-    // saqlangan lastId'dan farq qiladi). Endi KO'RILGAN barcha ID'lar
-    // to'plami saqlanadi — faqat haqiqatan ilgari ko'rilmagan ID'lar
-    // uchun ogohlantirish beriladi.
     const rawSeen = sessionStorage.getItem('seen_new_order_ids');
     const seenIds = new Set<string>(rawSeen ? JSON.parse(rawSeen) : []);
     let isFirstCheck = rawSeen === null;
 
     function persistSeenIds(): void {
-      // Cheksiz o'sib ketmasligi uchun faqat oxirgi 200 tasini saqlaymiz
       sessionStorage.setItem('seen_new_order_ids', JSON.stringify(Array.from(seenIds).slice(-200)));
     }
 
@@ -230,10 +233,6 @@ function AppContent({ onAuth, showToast }: { onAuth: (token: string) => void; sh
         if (!Array.isArray(orders)) return;
 
         if (isFirstCheck) {
-          // Ilk tekshiruvda mavjud 'new' buyurtmalarni ogohlantirishsiz
-          // "ko'rilgan" deb belgilaymiz — aks holda sahifa har
-          // yangilanganda eski, allaqachon ma'lum buyurtmalar uchun ham
-          // signal chalinaverardi.
           orders.forEach(o => seenIds.add(o.id));
           isFirstCheck = false;
           persistSeenIds();
@@ -246,7 +245,9 @@ function AppContent({ onAuth, showToast }: { onAuth: (token: string) => void; sh
         freshOrders.forEach(o => seenIds.add(o.id));
         persistSeenIds();
 
-        playBeep();
+        if (!isMutedRef.current) {
+          playBeep();
+        }
         const msg = freshOrders.length === 1
           ? `🔔 Yangi buyurtma keldi: #${freshOrders[0].id}`
           : `🔔 ${freshOrders.length} ta yangi buyurtma keldi!`;
@@ -286,6 +287,15 @@ function AppContent({ onAuth, showToast }: { onAuth: (token: string) => void; sh
               </li>
             ))}
           </ul>
+          <div
+            className="nav-item sound-toggle-btn"
+            onClick={toggleMute}
+            style={{ cursor: 'pointer' }}
+            title={isMuted ? "Ovozli bildirishnomani yoqish" : "Ovozli bildirishnomani o'chirish"}
+          >
+            <span style={{ fontSize: '1.15rem' }}>{isMuted ? '🔇' : '🔊'}</span>
+            <span>{isMuted ? "Ovoz o'chiq" : "Ovoz yoniq"}</span>
+          </div>
           <div className="nav-item logout-btn" onClick={() => { logout(); onAuth(''); }}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
             <span>Chiqish</span>

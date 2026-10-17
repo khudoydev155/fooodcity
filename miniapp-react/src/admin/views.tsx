@@ -669,7 +669,7 @@ export function Dashboard({ ctx }: { ctx: AdminCtx }) {
 // ─── ORDERS ──────────────────────────────────────────────────────────────────
 
 const ORDER_TABS: { label: string; status: string }[] = [
-  { label: 'Hammasi', status: '' },
+  { label: 'Barchasi', status: '' },
   { label: 'Yangi', status: 'new' },
   { label: 'Tasdiqlangan', status: 'confirmed' },
   { label: 'Tayyorlanmoqda', status: 'cooking' },
@@ -678,10 +678,26 @@ const ORDER_TABS: { label: string; status: string }[] = [
   { label: 'Bekor', status: 'cancelled' }
 ];
 
+function getOrderSla(isoDate: string): { label: string; urgency: 'normal' | 'warning' | 'danger' } {
+  try {
+    const elapsedMs = Date.now() - new Date(isoDate).getTime();
+    const elapsedMin = Math.max(0, Math.floor(elapsedMs / 60000));
+    if (elapsedMin < 10) {
+      return { label: `⏱ ${elapsedMin} daq`, urgency: 'normal' };
+    } else if (elapsedMin < 20) {
+      return { label: `⏱ ${elapsedMin} daq`, urgency: 'warning' };
+    } else {
+      return { label: `⚠️ ${elapsedMin} daq!`, urgency: 'danger' };
+    }
+  } catch {
+    return { label: '⏱ —', urgency: 'normal' };
+  }
+}
+
 const PAGE_SIZE = 30;
 
 export function Orders({ ctx }: { ctx: AdminCtx }) {
-  const { refreshTick } = ctx;
+  const { refreshTick, showToast } = ctx;
   const [status, setStatus] = useState('');
   const [query, setQuery] = useState('');
   const debouncedQuery = useDebouncedValue(query);
@@ -720,11 +736,23 @@ export function Orders({ ctx }: { ctx: AdminCtx }) {
   }, [loadOrders]);
 
   const showOrderDetail = useOrderDetail(ctx, loadOrders);
-  // MUHIM: ilgari bu sahifa hech qanday "limit" yubormas edi — backend esa
-  // default holda faqat 20 ta ENG SO'NGGI buyurtmani qaytarardi. Ya'ni 20
-  // tadan ko'p buyurtma (masalan "Yetkazildi" yoki "Bekor" tarixida)
-  // bo'lsa, qolganlari admin panelda HECH QACHON ko'rinmasdi — sahifalash
-  // (pagination) yo'q edi. Endi "Yana yuklash" tugmasi bilan kengaytiriladi.
+
+  const handleQuickStatus = async (orderId: string, nextStatus: AdminOrderStatus, e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      await apiPost(`/api/admin/orders/${orderId}/status`, { status: nextStatus });
+      showToast(`Buyurtma #${orderId} yangilandi: ${ORDER_STATUS_MAP[nextStatus]?.label || nextStatus}`, 'success');
+      void loadOrders();
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Holatni yangilab bo‘lmadi', 'error');
+    }
+  };
+
+  const counts = (orders || []).reduce<Record<string, number>>((acc, o) => {
+    acc[o.status] = (acc[o.status] || 0) + 1;
+    return acc;
+  }, {});
+
   const canLoadMore = Array.isArray(orders) && orders.length >= page * PAGE_SIZE;
 
   return (
@@ -744,17 +772,23 @@ export function Orders({ ctx }: { ctx: AdminCtx }) {
         </div>
       </div>
       <div className="tabs">
-        {ORDER_TABS.map(t => (
-          <button
-            key={t.status}
-            type="button"
-            className={`tab${status === t.status ? ' active' : ''}`}
-            aria-pressed={status === t.status}
-            onClick={() => setStatus(t.status)}
-          >
-            {t.label}
-          </button>
-        ))}
+        {ORDER_TABS.map(t => {
+          const tabCount = t.status ? counts[t.status] || 0 : orders?.length || 0;
+          return (
+            <button
+              key={t.status}
+              type="button"
+              className={`tab${status === t.status ? ' active' : ''}`}
+              aria-pressed={status === t.status}
+              onClick={() => setStatus(t.status)}
+            >
+              <span>{t.label}</span>
+              {tabCount > 0 && (
+                <span className={`tab-badge${t.status === 'new' ? ' is-new' : ''}`}>{tabCount}</span>
+              )}
+            </button>
+          );
+        })}
       </div>
       <div className="table-container">
         {orders === null && !loadError && (
@@ -799,16 +833,18 @@ export function Orders({ ctx }: { ctx: AdminCtx }) {
               : address && !isPickup
                 ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`
                 : '';
+            const sla = getOrderSla(order.created_at);
+
             return (
-              <article key={order.id} className={`admin-order-card${order.status === 'new' ? ' is-new' : ''}`}>
+              <article
+                key={order.id}
+                className={`admin-order-card${order.status === 'new' ? ' is-new' : ''}`}
+                onClick={() => showOrderDetail(order.id)}
+              >
                 <div className="admin-order-card-top">
-                  <div>
+                  <div className="admin-order-id-group">
                     <span className="admin-order-number">#{order.id}</span>
-                    <time dateTime={order.created_at}>
-                      {new Date(order.created_at).toLocaleString('uz-UZ', {
-                        day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
-                      })}
-                    </time>
+                    <span className={`admin-order-sla sla-${sla.urgency}`}>{sla.label}</span>
                   </div>
                   <span
                     className={`badge badge-${order.status}`}
@@ -828,16 +864,16 @@ export function Orders({ ctx }: { ctx: AdminCtx }) {
 
                 <div className="admin-order-contact-row">
                   {order.users?.phone ? (
-                    <a href={`tel:${order.users.phone}`} onClick={event => event.stopPropagation()}>
-                      ☎️ {order.users.phone}
+                    <a href={`tel:${order.users.phone}`} className="admin-order-call-btn" onClick={event => event.stopPropagation()} title="Qo'ng'iroq qilish">
+                      📞 {order.users.phone}
                     </a>
                   ) : (
-                    <span className="admin-order-muted">☎️ Telefon kiritilmagan</span>
+                    <span className="admin-order-muted">📞 Telefon yo'q</span>
                   )}
                   {address && (
                     mapUrl ? (
-                      <a href={mapUrl} target="_blank" rel="noreferrer" onClick={event => event.stopPropagation()}>
-                        📍 {isPickup ? 'Olib ketish' : 'Xaritada manzil'}
+                      <a href={mapUrl} target="_blank" rel="noreferrer" className="admin-order-map-link" onClick={event => event.stopPropagation()}>
+                        📍 {isPickup ? 'Olib ketish' : address} ↗
                       </a>
                     ) : <span>📍 {address}</span>
                   )}
@@ -855,7 +891,7 @@ export function Orders({ ctx }: { ctx: AdminCtx }) {
                       <span>{((Number(item.price) || 0) * Math.max(1, Number(item.qty) || 1)).toLocaleString('uz-UZ')} so‘m</span>
                     </div>
                   ))}
-                  {orderItems.length > 3 && <div className="admin-order-more">yana {orderItems.length - 3} xil mahsulot</div>}
+                  {orderItems.length > 3 && <div className="admin-order-more">+ yana {orderItems.length - 3} ta mahsulot</div>}
                   {orderItems.length === 0 && <div className="admin-order-muted">Mahsulot tafsiloti mavjud emas</div>}
                   {order.note && <div className="admin-order-note">📝 {order.note}</div>}
                 </div>
@@ -865,16 +901,50 @@ export function Orders({ ctx }: { ctx: AdminCtx }) {
                     <PaymentBadge order={order} />
                     {order.payment_receipt_url && (
                       <a href={order.payment_receipt_url} target="_blank" rel="noreferrer" onClick={event => event.stopPropagation()}>
-                        Chekni ko‘rish ↗
+                        Chek ↗
                       </a>
                     )}
                   </div>
                   <strong className="admin-order-total">{(Number(order.total) || 0).toLocaleString('uz-UZ')} <small>so‘m</small></strong>
                 </div>
 
-                <button type="button" className="admin-order-details" onClick={() => showOrderDetail(order.id)}>
-                  Buyurtma tafsilotlari <span aria-hidden="true">→</span>
-                </button>
+                {order.courier && (
+                  <div className="admin-order-courier-pill">
+                    🛵 Kuryer: <b>{order.courier.full_name || order.courier.username || order.courier_id}</b>
+                  </div>
+                )}
+
+                {/* TEZKOR HARAKAT TUGMALARI */}
+                <div className="admin-order-quick-actions" onClick={event => event.stopPropagation()}>
+                  {order.status === 'new' && (
+                    <>
+                      <button type="button" className="btn-quick-action btn-confirm" onClick={e => handleQuickStatus(order.id, 'confirmed', e)}>
+                        ✅ Tasdiqlash
+                      </button>
+                      <button type="button" className="btn-quick-action btn-cancel" onClick={e => handleQuickStatus(order.id, 'cancelled', e)}>
+                        ❌ Bekor
+                      </button>
+                    </>
+                  )}
+                  {order.status === 'confirmed' && (
+                    <button type="button" className="btn-quick-action btn-cooking" onClick={e => handleQuickStatus(order.id, 'cooking', e)}>
+                      👨‍🍳 Oshxonaga
+                    </button>
+                  )}
+                  {order.status === 'cooking' && (
+                    <button type="button" className="btn-quick-action btn-courier" onClick={() => showOrderDetail(order.id)}>
+                      🛵 Kuryer biriktirish
+                    </button>
+                  )}
+                  {order.status === 'delivering' && (
+                    <button type="button" className="btn-quick-action btn-delivered" onClick={e => handleQuickStatus(order.id, 'delivered', e)}>
+                      ✅ Yetkazildi
+                    </button>
+                  )}
+                  <button type="button" className="btn-quick-action btn-details" onClick={() => showOrderDetail(order.id)}>
+                    Batafsil ↗
+                  </button>
+                </div>
               </article>
             );
           })}

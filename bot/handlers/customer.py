@@ -9,6 +9,7 @@ from aiogram.types import (
     ReplyKeyboardMarkup,
     ReplyKeyboardRemove,
     WebAppInfo,
+    MenuButtonWebApp,
 )
 from aiogram.filters import CommandStart, Command
 from bot.database import db
@@ -57,6 +58,18 @@ async def cmd_start(message: Message):
     if not user:
         await message.answer("Ma'lumotlaringizni saqlab bo'lmadi. Iltimos, birozdan so'ng qayta urinib ko'ring.")
         return
+
+    if config.MINI_APP_URL:
+        try:
+            await message.bot.set_chat_menu_button(
+                chat_id=message.chat.id,
+                menu_button=MenuButtonWebApp(
+                    text="🍽 Menyu",
+                    web_app=WebAppInfo(url=config.MINI_APP_URL)
+                )
+            )
+        except Exception as e:
+            pass
 
     welcome_text = (
         f"👋 <b>Assalomu alaykum, {escape(message.from_user.full_name)}!</b>\n\n"

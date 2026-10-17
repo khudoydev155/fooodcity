@@ -31,7 +31,22 @@ if sentry_dsn:
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
+async def setup_chat_menu_button(bot: Bot) -> None:
+    if config.MINI_APP_URL:
+        try:
+            from aiogram.types import MenuButtonWebApp, WebAppInfo
+            await bot.set_chat_menu_button(
+                menu_button=MenuButtonWebApp(
+                    text="🍽 Menyu",
+                    web_app=WebAppInfo(url=config.MINI_APP_URL)
+                )
+            )
+            logger.info("Telegram Chat Menu Button configured: %s", config.MINI_APP_URL)
+        except Exception as e:
+            logger.warning("Failed to configure chat menu button: %s", e)
+
 async def on_startup(bot: Bot) -> None:
+    await setup_chat_menu_button(bot)
     if config.LOCAL_API_ONLY or config.LOCAL_POLLING:
         logger.info("Local mode: Telegram webhook was left unchanged.")
         return
@@ -132,6 +147,7 @@ def main():
             await site.start()
             logger.info("Local API server started; Telegram bot is polling for updates.")
             try:
+                await setup_chat_menu_button(bot)
                 await dp.start_polling(bot)
             finally:
                 await runner.cleanup()
