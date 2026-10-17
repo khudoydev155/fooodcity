@@ -15,6 +15,7 @@ from bot.middlewares.license import LicenseCheckMiddleware
 from bot.api.router import MAX_RECEIPT_UPLOAD_BYTES, routes, setup_cors
 from bot.api import admin_api  # noqa: F401 — import triggers /api/admin/analytics route registration
 from bot.api import promo_api  # noqa: F401 — registers public and admin promo routes
+from bot.api import payments_api  # noqa: F401 — registers Click & Payme webhook and customer routes
 from aiogram.types import ErrorEvent
 import os
 import sentry_sdk

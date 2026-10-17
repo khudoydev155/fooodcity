@@ -98,11 +98,22 @@ function PaymentBadge({ order }: { order: AdminOrder }) {
   const method = order.payment_method || 'cash';
   const pStatus = order.payment_status || 'pending';
   let text: string; let color: string;
-  if (pStatus === 'paid') { text = "✅ To'langan"; color = '#10B981'; }
-  else if (pStatus === 'rejected') { text = '❌ Chek rad'; color = '#EF4444'; }
-  else if (method === 'card_transfer' && order.payment_receipt_url) { text = '🧾 Chekni tekshiring'; color = '#F59E0B'; }
-  else if (method === 'card_transfer') { text = '💳 Chek kutilmoqda'; color = '#3B82F6'; }
-  else { text = '💵 Naqd'; color = '#9CA3AF'; }
+  if (pStatus === 'paid') {
+    text = method === 'click' ? "✅ Click (to'langan)" : method === 'payme' ? "✅ Payme (to'langan)" : "✅ To'langan";
+    color = '#10B981';
+  } else if (pStatus === 'rejected') {
+    text = '❌ Rad etilgan';
+    color = '#EF4444';
+  } else if (method === 'click') {
+    text = '🟢 Click kutilmoqda';
+    color = '#00B159';
+  } else if (method === 'payme') {
+    text = '🔵 Payme kutilmoqda';
+    color = '#00CCCC';
+  } else {
+    text = '💵 Naqd';
+    color = '#9CA3AF';
+  }
   return (
     <span style={{ background: color + '22', color, padding: '3px 10px', borderRadius: 50, fontWeight: 700, fontSize: 12, whiteSpace: 'nowrap' }}>
       {text}
@@ -116,45 +127,42 @@ const PAYMENT_STATUS_UI: Record<string, { label: string; color: string }> = {
   rejected: { label: 'Rad etilgan', color: '#EF4444' },
 };
 
-function PaymentBox({ order, onConfirm, onReject }: {
+function PaymentBox({ order, onConfirm }: {
   order: AdminOrder;
   onConfirm: (id: string) => Promise<void>;
-  onReject: (id: string) => Promise<void>;
+  onReject?: (id: string) => Promise<void>;
 }) {
   const [processing, setProcessing] = useState(false);
   const method = order.payment_method || 'cash';
   const pStatus = order.payment_status || 'pending';
   const ui = PAYMENT_STATUS_UI[pStatus] || PAYMENT_STATUS_UI.pending;
-  const receipt = order.payment_receipt_url;
   const btn = (bg: string): React.CSSProperties => ({
     flex: 1, padding: 10, borderRadius: 8, border: 'none', background: bg, color: '#fff', fontWeight: 700, cursor: 'pointer'
   });
+
+  const methodTitle =
+    method === 'click' ? '🟢 Click to‘lovi' :
+    method === 'payme' ? '🔵 Payme to‘lovi' : '💵 Naqd pul';
 
   return (
     <div style={{ padding: 16, borderBottom: '1px solid rgba(255,255,255,0.05)', margin: '0 -1.5rem' }}>
       <div style={{ color: '#888', fontSize: 11, textTransform: 'uppercase', marginBottom: 8 }}>TO'LOV</div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-        <div style={{ fontWeight: 700 }}>{method === 'cash' ? '💵 Naqd pul' : "💳 Karta orqali o'tkazma"}</div>
+        <div style={{ fontWeight: 700 }}>{methodTitle}</div>
         <div style={{ background: ui.color + '22', color: ui.color, padding: '4px 12px', borderRadius: 50, fontWeight: 700, fontSize: 12 }}>
           {ui.label}
         </div>
       </div>
 
-      {method === 'card_transfer' && !receipt && (
-        <div style={{ color: '#aaa', fontSize: 13 }}>Mijoz hali chek yuklamagan</div>
-      )}
-
-      {method === 'card_transfer' && receipt && (
-        <div style={{ marginBottom: 10 }}>
-          <a href={receipt} target="_blank" rel="noreferrer">
-            <img src={receipt} alt="To'lov cheki"
-              style={{ maxWidth: '100%', maxHeight: 280, borderRadius: 8, border: '1px solid rgba(255,255,255,0.1)', display: 'block' }} />
-          </a>
-          <div style={{ color: '#888', fontSize: 11, marginTop: 4 }}>Rasmni bosib to'liq ko'rish mumkin</div>
+      {(method === 'click' || method === 'payme') && (
+        <div style={{ color: '#aaa', fontSize: 12, marginBottom: 8 }}>
+          {pStatus === 'paid'
+            ? "⚡ To'lov tizim orqali avtomatik tasdiqlangan (100% kafolatlangan)"
+            : "⏳ Mijozdan avtomatik to'lov kutilmoqda..."}
         </div>
       )}
 
-      {pStatus !== 'paid' && (method === 'cash' || receipt) && (
+      {pStatus !== 'paid' && method === 'cash' && (
         <div style={{ display: 'flex', gap: 8 }}>
           <button
             style={btn('#10B981')}
@@ -166,18 +174,6 @@ function PaymentBox({ order, onConfirm, onReject }: {
           >
             {processing ? '⏳ Saqlanmoqda...' : "✅ To'landi deb belgilash"}
           </button>
-          {method === 'card_transfer' && pStatus !== 'rejected' && (
-            <button
-              style={btn('#EF4444')}
-              disabled={processing}
-              onClick={async () => {
-                setProcessing(true);
-                try { await onReject(order.id); } finally { setProcessing(false); }
-              }}
-            >
-              {processing ? '⏳ Saqlanmoqda...' : '❌ Rad etish'}
-            </button>
-          )}
         </div>
       )}
     </div>
@@ -1547,53 +1543,105 @@ export function Couriers({ ctx }: { ctx: AdminCtx }) {
 
 export function Settings({ ctx }: { ctx: AdminCtx }) {
   const { showToast } = ctx;
-  const [cardNumber, setCardNumber] = useState('');
-  const [cardHolder, setCardHolder] = useState('');
+  const [clickServiceId, setClickServiceId] = useState('');
+  const [clickMerchantId, setClickMerchantId] = useState('');
+  const [clickSecretKey, setClickSecretKey] = useState('');
+  const [clickIsConfigured, setClickIsConfigured] = useState(false);
+  const [paymeMerchantId, setPaymeMerchantId] = useState('');
+  const [paymeSecretKey, setPaymeSecretKey] = useState('');
+  const [paymeTestMode, setPaymeTestMode] = useState(true);
+  const [paymeIsConfigured, setPaymeIsConfigured] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    apiGet<PaymentSettings>('/api/admin/payment-settings')
-      .then(d => {
-        setCardNumber(d.payment_card_number || '');
-        setCardHolder(d.payment_card_holder || '');
+    apiGet<any>('/api/admin/click-payme-settings')
+      .then(cpRes => {
+        if (cpRes) {
+          setClickServiceId(cpRes.click_service_id || '');
+          setClickMerchantId(cpRes.click_merchant_id || '');
+          setClickIsConfigured(Boolean(cpRes.click_is_configured));
+          setPaymeMerchantId(cpRes.payme_merchant_id || '');
+          setPaymeTestMode(Boolean(cpRes.payme_test_mode));
+          setPaymeIsConfigured(Boolean(cpRes.payme_is_configured));
+        }
       })
       .catch(() => showToast("Sozlamalarni yuklab bo'lmadi", 'error'))
       .finally(() => setLoaded(true));
   }, [showToast]);
 
-  async function save(): Promise<void> {
-    const digits = cardNumber.replace(/\s/g, '');
-    if (digits && !/^\d{16}$/.test(digits)) {
-      showToast("Karta raqami 16 ta raqamdan iborat bo'lishi kerak", 'error');
-      return;
-    }
+  async function saveClickPayme(): Promise<void> {
     setBusy(true);
     try {
-      const res = await apiPut<{ success?: boolean }>('/api/admin/payment-settings', {
-        card_number: digits.replace(/(\d{4})(?=\d)/g, '$1 '),
-        card_holder: cardHolder.trim(),
-      });
-      if (res.success) showToast('Saqlandi', 'success');
-      else showToast('Saqlanmadi', 'error');
-    } catch (err) { showToast('Xatolik yuz berdi', 'error'); }
+      const payload: any = {
+        click_service_id: clickServiceId.trim(),
+        click_merchant_id: clickMerchantId.trim(),
+        payme_merchant_id: paymeMerchantId.trim(),
+        payme_test_mode: paymeTestMode,
+      };
+      if (clickSecretKey.trim()) payload.click_secret_key = clickSecretKey.trim();
+      if (paymeSecretKey.trim()) payload.payme_secret_key = paymeSecretKey.trim();
+
+      const res = await apiPut<{ success?: boolean }>('/api/admin/click-payme-settings', payload);
+      if (res.success) {
+        showToast('Click & Payme sozlamalari saqlandi', 'success');
+        setClickSecretKey('');
+        setPaymeSecretKey('');
+      } else {
+        showToast('Saqlanmadi', 'error');
+      }
+    } catch { showToast('Xatolik yuz berdi', 'error'); }
     finally { setBusy(false); }
   }
 
   return (
     <>
       <h1 className="page-title">⚙️ Sozlamalar</h1>
-      <div className="stat-card" style={{ maxWidth: 500 }}>
-        <div className="form-label" style={{ marginBottom: 8 }}>💳 Karta orqali to'lov rekvizitlari</div>
-        <p style={{ fontSize: 13, color: 'var(--gray)', marginBottom: 12 }}>
-          Mijoz "Karta orqali" usulini tanlaganda, shu karta raqami unga ko'rsatiladi.
-        </p>
-        <input type="text" className="form-input" style={{ marginBottom: 8 }} placeholder="Karta raqami (16 ta raqam)"
-          inputMode="numeric" maxLength={19} value={cardNumber} disabled={!loaded}
-          onChange={e => setCardNumber(e.target.value)} />
-        <input type="text" className="form-input" style={{ marginBottom: 12 }} placeholder="Karta egasi (masalan: ALIYEV VALI)"
-          value={cardHolder} disabled={!loaded} onChange={e => setCardHolder(e.target.value)} />
-        <button className="btn btn-primary" disabled={busy || !loaded} onClick={save}>Saqlash</button>
+
+      <div style={{ maxWidth: 700 }}>
+        {/* CLICK & PAYME INTEGRATSIYASI */}
+        <div className="stat-card">
+          <div className="form-label" style={{ marginBottom: 6, fontSize: 16 }}>⚡ Click & Payme Integratsiyasi</div>
+          <p style={{ fontSize: 13, color: 'var(--gray)', marginBottom: 14 }}>
+            Mijozlar buyurtmani 1 ta bosishda to'lashi va soxta cheklarning oldini olish uchun rasmiy merchant kalitlari.
+          </p>
+
+          <div style={{ marginBottom: 16, padding: 12, borderRadius: 10, background: 'rgba(0,177,89,0.08)', border: '1px solid rgba(0,177,89,0.25)' }}>
+            <div style={{ fontWeight: 800, color: '#00B159', marginBottom: 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span>🟢 Click Merchant</span>
+              <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 20, background: clickIsConfigured ? '#00B15922' : '#EF444422', color: clickIsConfigured ? '#00B159' : '#EF4444' }}>
+                {clickIsConfigured ? 'Ulangan' : 'Ulanmagan'}
+              </span>
+            </div>
+            <input type="text" className="form-input" style={{ marginBottom: 8 }} placeholder="Click Service ID"
+              value={clickServiceId} disabled={!loaded} onChange={e => setClickServiceId(e.target.value)} />
+            <input type="text" className="form-input" style={{ marginBottom: 8 }} placeholder="Click Merchant ID"
+              value={clickMerchantId} disabled={!loaded} onChange={e => setClickMerchantId(e.target.value)} />
+            <input type="password" className="form-input" placeholder="Click Secret Key (o'zgartirish uchun)"
+              value={clickSecretKey} disabled={!loaded} onChange={e => setClickSecretKey(e.target.value)} />
+          </div>
+
+          <div style={{ marginBottom: 16, padding: 12, borderRadius: 10, background: 'rgba(0,204,204,0.08)', border: '1px solid rgba(0,204,204,0.25)' }}>
+            <div style={{ fontWeight: 800, color: '#00CCCC', marginBottom: 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span>🔵 Payme Business</span>
+              <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 20, background: paymeIsConfigured ? '#00CCCC22' : '#EF444422', color: paymeIsConfigured ? '#00CCCC' : '#EF4444' }}>
+                {paymeIsConfigured ? 'Ulangan' : 'Ulanmagan'}
+              </span>
+            </div>
+            <input type="text" className="form-input" style={{ marginBottom: 8 }} placeholder="Payme Merchant ID"
+              value={paymeMerchantId} disabled={!loaded} onChange={e => setPaymeMerchantId(e.target.value)} />
+            <input type="password" className="form-input" style={{ marginBottom: 8 }} placeholder="Payme Secret Key (o'zgartirish uchun)"
+              value={paymeSecretKey} disabled={!loaded} onChange={e => setPaymeSecretKey(e.target.value)} />
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--text2)', cursor: 'pointer' }}>
+              <input type="checkbox" checked={paymeTestMode} onChange={e => setPaymeTestMode(e.target.checked)} />
+              <span>Payme Test / Sandbox rejimi</span>
+            </label>
+          </div>
+
+          <button className="btn btn-primary" style={{ width: '100%' }} disabled={busy || !loaded} onClick={saveClickPayme}>
+            Click & Payme sozlamalarini saqlash
+          </button>
+        </div>
       </div>
     </>
   );

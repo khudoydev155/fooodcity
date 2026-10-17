@@ -69,13 +69,12 @@ def format_admin_order_notification(order: dict, title: str) -> str:
         item_lines.append(f"… yana {len(items) - 20} ta mahsulot")
 
     payment_method = order.get("payment_method") or "cash"
-    if payment_method == "card_transfer":
+    if payment_method == "click":
         payment_status = order.get("payment_status") or "pending"
-        payment_label = {
-            "paid": "Karta o'tkazmasi — to'langan",
-            "rejected": "Karta o'tkazmasi — chek rad etilgan",
-            "pending": "Karta o'tkazmasi — tasdiq kutilmoqda",
-        }.get(payment_status, "Karta o'tkazmasi")
+        payment_label = "Click — to'langan" if payment_status == "paid" else "Click — to'lov kutilmoqda"
+    elif payment_method == "payme":
+        payment_status = order.get("payment_status") or "pending"
+        payment_label = "Payme — to'langan" if payment_status == "paid" else "Payme — to'lov kutilmoqda"
     else:
         payment_label = "Naqd pul"
 
@@ -549,7 +548,19 @@ async def create_order_api(request: web.Request):
         except Exception:
             logger.exception("New-order admin notification failed for order %s", order.get("id"))
 
-        return web.json_response({"success": True, "order": order})
+        # Agar payment_method == 'click' yoki 'payme' bo'lsa, payment_url generatsiya qilib qo'shamiz
+        payment_url = ""
+        p_method = str(payload.get("payment_method") or "").lower()
+        if p_method in ("click", "payme"):
+            try:
+                from bot.services.payment_service import PaymentService
+                order_total = int(float(order.get("total") or 0))
+                return_url = f"{config.MINI_APP_URL}?order_id={order['id']}"
+                payment_url = await PaymentService.generate_payment_url(order["id"], p_method, order_total, return_url)
+            except Exception as pe:
+                logger.warning(f"Payment URL generation failed for order {order['id']}: {pe}")
+
+        return web.json_response({"success": True, "order": order, "payment_url": payment_url})
     except Exception as e:
         # Log full exception details (e.g., NUMERIC type errors)
         logger.exception("Exception during order creation: %s", e)

@@ -175,10 +175,9 @@ class DatabaseManager:
 
             points_earned = calculated_subtotal // 1000 # 1 point per 1000 sum
 
-            # To'lov usuli — faqat ikkita qiymat qabul qilinadi, boshqa
-            # har qanday narsa xavfsiz standart qiymatga ('cash') tushadi.
-            payment_method = payload.get("payment_method")
-            if payment_method not in ("cash", "card_transfer"):
+            # To'lov usuli — cash, click, payme (P2P card_transfer olib tashlandi)
+            payment_method = str(payload.get("payment_method") or "cash").lower().strip()
+            if payment_method not in ("cash", "click", "payme"):
                 payment_method = "cash"
 
             # 4. Atomic Transaction via RPC
@@ -715,6 +714,104 @@ class DatabaseManager:
             return True
         except Exception as e:
             logger.error(f"update_payment_settings() failed: {e}")
+            return False
+
+    async def get_click_and_payme_settings(self) -> dict:
+        """Kafolatli: avval system_settings dan, bo'sh bo'lsa config (.env) dan oladi."""
+        db_settings = {}
+        try:
+            res = await self._run_sync(
+                self.client.table("system_settings")
+                    .select("click_service_id, click_merchant_id, click_secret_key, click_merchant_user_id, payme_merchant_id, payme_secret_key, payme_test_mode")
+                    .eq("id", "foodcity_bot")
+                    .single()
+                    .execute
+            )
+            if res.data:
+                db_settings = res.data
+        except Exception as e:
+            logger.warning(f"get_click_and_payme_settings from DB failed: {e}")
+
+        return {
+            "click_service_id": str(db_settings.get("click_service_id") or config.CLICK_SERVICE_ID or "").strip(),
+            "click_merchant_id": str(db_settings.get("click_merchant_id") or config.CLICK_MERCHANT_ID or "").strip(),
+            "click_secret_key": str(db_settings.get("click_secret_key") or config.CLICK_SECRET_KEY or "").strip(),
+            "click_merchant_user_id": str(db_settings.get("click_merchant_user_id") or config.CLICK_MERCHANT_USER_ID or "").strip(),
+            "payme_merchant_id": str(db_settings.get("payme_merchant_id") or config.PAYME_MERCHANT_ID or "").strip(),
+            "payme_secret_key": str(db_settings.get("payme_secret_key") or config.PAYME_SECRET_KEY or "").strip(),
+            "payme_test_mode": bool(db_settings.get("payme_test_mode") if db_settings.get("payme_test_mode") is not None else config.PAYME_TEST_MODE),
+        }
+
+    async def get_order_by_id(self, order_id: str) -> dict | None:
+        """Buyurtmani to'liq ma'lumotlari bilan qaytaradi."""
+        try:
+            res = await self._run_sync(
+                self.client.table("orders").select("*").eq("id", order_id).limit(1).execute
+            )
+            return res.data[0] if res.data else None
+        except Exception as e:
+            logger.error(f"get_order_by_id({order_id}) failed: {e}")
+            return None
+
+    async def get_payment_transaction(self, provider: str, transaction_id: str) -> dict | None:
+        try:
+            res = await self._run_sync(
+                self.client.table("payment_transactions")
+                    .select("*")
+                    .eq("provider", provider)
+                    .eq("transaction_id", str(transaction_id))
+                    .limit(1)
+                    .execute
+            )
+            return res.data[0] if res.data else None
+        except Exception as e:
+            logger.error(f"get_payment_transaction({provider}, {transaction_id}) failed: {e}")
+            return None
+
+    async def create_payment_transaction(self, data: dict) -> dict | None:
+        try:
+            res = await self._run_sync(
+                self.client.table("payment_transactions")
+                    .insert(data)
+                    .execute
+            )
+            return res.data[0] if res.data else None
+        except Exception as e:
+            logger.error(f"create_payment_transaction failed: {e}")
+            return None
+
+    async def update_payment_transaction(self, provider: str, transaction_id: str, updates: dict) -> bool:
+        try:
+            updates["updated_at"] = datetime.utcnow().isoformat()
+            res = await self._run_sync(
+                self.client.table("payment_transactions")
+                    .update(updates)
+                    .eq("provider", provider)
+                    .eq("transaction_id", str(transaction_id))
+                    .execute
+            )
+            return bool(res.data)
+        except Exception as e:
+            logger.error(f"update_payment_transaction failed: {e}")
+            return False
+
+    async def mark_order_paid(self, order_id: str, provider: str, transaction_id: str) -> bool:
+        """Buyurtmani to'langan deb belgilaydi (atomar va xavfsiz)."""
+        try:
+            now_str = datetime.utcnow().isoformat()
+            res = await self._run_sync(
+                self.client.table("orders")
+                    .update({
+                        "payment_status": "paid",
+                        "payment_method": provider,
+                        "payment_confirmed_at": now_str,
+                    })
+                    .eq("id", order_id)
+                    .execute
+            )
+            return bool(res.data)
+        except Exception as e:
+            logger.error(f"mark_order_paid({order_id}) failed: {e}")
             return False
 
     async def get_order_owner(self, order_id: str) -> int | None:

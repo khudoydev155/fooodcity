@@ -12,12 +12,21 @@ export interface AdminOrderItem {
   emoji?: string;
 }
 
-export type PaymentMethod = 'cash' | 'card_transfer';
-export type PaymentStatus = 'pending' | 'paid' | 'rejected';
+export type PaymentMethod = 'cash' | 'click' | 'payme';
+export type PaymentStatus = 'pending' | 'paid' | 'rejected' | 'cancelled';
 
 export interface PaymentSettings {
   payment_card_number?: string | null;
   payment_card_holder?: string | null;
+  click_service_id?: string | null;
+  click_merchant_id?: string | null;
+  click_merchant_user_id?: string | null;
+  click_secret_key_masked?: string | null;
+  click_is_configured?: boolean;
+  payme_merchant_id?: string | null;
+  payme_secret_key_masked?: string | null;
+  payme_test_mode?: boolean;
+  payme_is_configured?: boolean;
 }
 
 export interface AdminOrder {

@@ -49,6 +49,8 @@ export interface TelegramWebApp {
   };
   showPopup(params: TgPopupParams, callback?: (buttonId: string) => void): void;
   openTelegramLink(url: string): void;
+  openLink?: (url: string, options?: { try_instant_view?: boolean }) => void;
+  openInvoice?: (url: string, callback?: (status: string) => void) => void;
   isVersionAtLeast(version: string): boolean;
   LocationManager: TgLocationManager;
 }

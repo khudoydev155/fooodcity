@@ -21,6 +21,7 @@ const tgStub: TelegramWebApp = {
   },
   showPopup: (p) => alert((p.title ? p.title + '\n' : '') + (p.message || '')),
   openTelegramLink: (url) => { window.open(url, '_blank', 'noopener,noreferrer'); },
+  openLink: (url) => { window.open(url, '_blank', 'noopener,noreferrer'); },
   isVersionAtLeast: () => false,
   LocationManager: {
     init: (cb) => cb?.(),

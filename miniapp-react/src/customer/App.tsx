@@ -6,10 +6,11 @@ import { t } from './i18n';
 import type { MenuItem, Category, Cart, AppliedCoupon, UserOrder, OrderStatus, Profile, Avatar, Promotion } from './types';
 
 interface TrackingPayment {
-  method: 'cash' | 'card_transfer';
-  status: 'pending' | 'paid' | 'rejected';
-  receiptUrl: string | null;
+  method: 'cash' | 'click' | 'payme';
+  status: 'pending' | 'paid' | 'rejected' | 'cancelled';
+  receiptUrl?: string | null;
   total: number;
+  paymentUrl?: string | null;
 }
 
 type Page = 'menu' | 'cart' | 'orders' | 'wishlist' | 'profile' | 'contact' | 'success' | 'tracking';
@@ -91,7 +92,7 @@ export default function App() {
   const [address, setAddress] = useState('');
   const [addressDisabled, setAddressDisabled] = useState(false);
   const [note, setNote] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'card_transfer'>('cash');
+  const [paymentMethod, setPaymentMethod] = useState<'click' | 'payme' | 'cash'>('click');
   const [ordering, setOrdering] = useState(false);
   const [orders, setOrders] = useState<OrdersState>(null);
   const [profile, setProfile] = useState<Profile>({ points: 0, orders: 0, spent: 0 });
@@ -108,10 +109,6 @@ export default function App() {
   const [trackingId, setTrackingId] = useState<string | null>(null);
   const [trackingStatus, setTrackingStatus] = useState<OrderStatus | null>(null);
   const [trackingPayment, setTrackingPayment] = useState<TrackingPayment | null>(null);
-  const [paymentInfo, setPaymentInfo] = useState<{ card_number: string; card_holder: string } | null>(null);
-  const [paymentInfoLoading, setPaymentInfoLoading] = useState(false);
-  const [paymentInfoError, setPaymentInfoError] = useState('');
-  const [receiptUploading, setReceiptUploading] = useState(false);
   const [showRating, setShowRating] = useState(false);
   const [avatarModalOpen, setAvatarModalOpen] = useState(false);
   const [avatarId, setAvatarId] = useState<string>(() => localStorage.getItem(AVATAR_KEY) || 'm1');
@@ -122,7 +119,6 @@ export default function App() {
 
   const toastTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const trackingInterval = useRef<ReturnType<typeof setInterval> | null>(null);
-  const receiptInputRef = useRef<HTMLInputElement>(null);
   const geo = useRef<{ lat: number | null; lon: number | null }>({ lat: null, lon: null });
   const pageRef = useRef<Page>(page);
   const menuLoadController = useRef<AbortController | null>(null);
@@ -469,6 +465,35 @@ export default function App() {
     }
   }
 
+  function openPaymentUrl(url?: string | null): void {
+    if (!url) return;
+    try {
+      if (tg?.openLink) {
+        tg.openLink(url);
+      } else {
+        window.open(url, '_blank');
+      }
+    } catch {
+      window.open(url, '_blank');
+    }
+  }
+
+  async function fetchPaymentLink(orderId: string, provider: string): Promise<void> {
+    try {
+      const res = await fetch(`${API_BASE}/api/order/${orderId}/payment-link?provider=${provider}`, {
+        headers: authHeaders(),
+      });
+      if (res.ok) {
+        const d = await res.json();
+        if (d?.payment_url) {
+          setTrackingPayment(prev => prev ? { ...prev, paymentUrl: d.payment_url } : null);
+        }
+      }
+    } catch (e) {
+      console.error('fetchPaymentLink error:', e);
+    }
+  }
+
   // ORDER
   async function placeOrder(): Promise<void> {
     if (phoneVerified === false) {
@@ -570,13 +595,17 @@ export default function App() {
         return;
       }
 
-      const result: { success?: boolean; error?: string; order?: { id: string; points_earned?: number } } = await response.json();
+      const result: { success?: boolean; error?: string; order?: { id: string; points_earned?: number }; payment_url?: string } = await response.json();
       if (response.ok && result.success && result.order) {
         createConfetti();
         setCart({});
         setOrdering(false);
-        showSuccessPage(result.order.id, result.order.points_earned || 0);
+        const pUrl = result.payment_url || null;
+        showSuccessPage(result.order.id, result.order.points_earned || 0, pUrl);
         showToast("✅ Buyurtma qabul qilindi!");
+        if (pUrl && (paymentMethod === 'click' || paymentMethod === 'payme')) {
+          setTimeout(() => openPaymentUrl(pUrl), 500);
+        }
       } else {
         throw new Error(result.error || "Buyurtma rad etildi");
       }
@@ -591,36 +620,48 @@ export default function App() {
     }
   }
 
-  function showSuccessPage(orderNum: string, pointsEarned = 0): void {
+  function showSuccessPage(orderNum: string, pointsEarned = 0, initialPaymentUrl: string | null = null): void {
     setSuccessOrderNum('#' + orderNum);
     setSuccessPoints(pointsEarned > 0 ? '🎁 +' + pointsEarned + ' ball oldingiz!' : null);
     setPage('success');
     window.scrollTo(0, 0);
-    // foydalanuvchi 3 soniya ichida boshqa sahifaga o'tgan bo'lsa, tracking'ga tortib ketmaymiz
     setTimeout(() => {
-      if (pageRef.current === 'success') showOrderTracking('#' + orderNum);
-    }, 3000);
+      if (pageRef.current === 'success') showOrderTracking('#' + orderNum, initialPaymentUrl);
+    }, 2800);
   }
 
   // TRACKING
-  async function updateTracking(orderId: string): Promise<void> {
+  async function updateTracking(orderId: string, preservedPaymentUrl?: string | null): Promise<void> {
     const cleanId = orderId.toString().replace('#', '');
     try {
       const res = await fetch(`${API_BASE}/api/order/${cleanId}/status`, { headers: authHeaders() });
       if (!res.ok) return;
       const data: {
         status?: OrderStatus; error?: string;
-        payment_method?: 'cash' | 'card_transfer'; payment_status?: 'pending' | 'paid' | 'rejected';
+        payment_method?: 'cash' | 'click' | 'payme'; payment_status?: 'pending' | 'paid' | 'rejected' | 'cancelled';
         payment_receipt_url?: string | null; total?: number;
       } = await res.json();
       if (!data || data.error || !data.status) return;
       setTrackingStatus(data.status);
-      setTrackingPayment({
-        method: data.payment_method || 'cash',
-        status: data.payment_status || 'pending',
-        receiptUrl: data.payment_receipt_url || null,
-        total: data.total || 0
+      const pMethod = (data.payment_method as 'cash' | 'click' | 'payme') || 'cash';
+      const pStatus = data.payment_status || 'pending';
+
+      setTrackingPayment(prev => {
+        const pUrl = preservedPaymentUrl || prev?.paymentUrl || null;
+        return {
+          method: pMethod,
+          status: pStatus,
+          receiptUrl: data.payment_receipt_url || null,
+          total: data.total || prev?.total || 0,
+          paymentUrl: pUrl,
+        };
       });
+
+      // Agar Click yoki Payme bo'lsa va paymentUrl hali bo'lmasa, havola olamiz
+      if ((pMethod === 'click' || pMethod === 'payme') && pStatus === 'pending' && !preservedPaymentUrl) {
+        void fetchPaymentLink(cleanId, pMethod);
+      }
+
       if (data.status === 'delivered') {
         if (trackingInterval.current) clearInterval(trackingInterval.current);
         setShowRating(true);
@@ -633,93 +674,27 @@ export default function App() {
     }
   }
 
-  function showOrderTracking(orderId: string): void {
+  function showOrderTracking(orderId: string, initialPaymentUrl: string | null = null): void {
     const cleanId = orderId.toString().replace('#', '');
     setTrackingId(cleanId);
     setTrackingStatus(null);
-    setTrackingPayment(null);
+    setTrackingPayment(initialPaymentUrl ? {
+      method: (paymentMethod as 'cash' | 'click' | 'payme') || 'cash',
+      status: 'pending',
+      receiptUrl: null,
+      total: 0,
+      paymentUrl: initialPaymentUrl,
+    } : null);
     setShowRating(false);
     setPage('tracking');
     window.scrollTo(0, 0);
     if (trackingInterval.current) clearInterval(trackingInterval.current);
-    updateTracking(cleanId);
-    trackingInterval.current = setInterval(() => updateTracking(cleanId), 10000);
+    updateTracking(cleanId, initialPaymentUrl);
+    // Click va Payme uchun real-time 4 soniyalik polling
+    trackingInterval.current = setInterval(() => updateTracking(cleanId), 4000);
   }
 
   useEffect(() => () => { if (trackingInterval.current) clearInterval(trackingInterval.current); }, []);
-
-  useEffect(() => {
-    if (paymentMethod === 'card_transfer' || trackingPayment?.method === 'card_transfer') {
-      void loadPaymentInfo();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [paymentMethod, trackingPayment?.method]);
-
-  // TO'LOV: karta rekvizitlari va chek yuklash
-  async function loadPaymentInfo(): Promise<void> {
-    setPaymentInfoLoading(true);
-    setPaymentInfoError('');
-    try {
-      const res = await fetch(`${API_BASE}/api/payment-info`, { headers: authHeaders() });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const info: { card_number?: string; card_holder?: string } = await res.json();
-      setPaymentInfo({
-        card_number: info.card_number || '',
-        card_holder: info.card_holder || '',
-      });
-    } catch (e) {
-      console.error('Payment info error:', e);
-      setPaymentInfoError("Karta ma'lumotlarini yuklab bo'lmadi. Internetni tekshirib, qayta urinib ko'ring.");
-    } finally {
-      setPaymentInfoLoading(false);
-    }
-  }
-
-  async function copyCardNumber(): Promise<void> {
-    if (!paymentInfo?.card_number) return;
-    const digits = paymentInfo.card_number.replace(/\D/g, '');
-    try {
-      if (navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(digits);
-      } else {
-        const temporaryInput = document.createElement('textarea');
-        temporaryInput.value = digits;
-        temporaryInput.style.position = 'fixed';
-        temporaryInput.style.opacity = '0';
-        document.body.appendChild(temporaryInput);
-        temporaryInput.select();
-        const copied = document.execCommand('copy');
-        temporaryInput.remove();
-        if (!copied) throw new Error('Clipboard access is unavailable');
-      }
-      showToast('📋 Karta raqami nusxalandi');
-    } catch (e) {
-      console.error('Card number copy failed:', e);
-      showToast("❌ Karta raqamini nusxalab bo'lmadi");
-    }
-  }
-
-  async function uploadReceipt(file: File): Promise<void> {
-    if (!trackingId) return;
-    if (!file.type.startsWith('image/')) { showToast("❌ Faqat rasm yuklang"); return; }
-    if (file.size > 8 * 1024 * 1024) { showToast("❌ Rasm 8 MB dan katta"); return; }
-    setReceiptUploading(true);
-    try {
-      const form = new FormData();
-      form.append('receipt', file);
-      const res = await fetch(`${API_BASE}/api/order/${trackingId}/payment-receipt`, {
-        method: 'POST', headers: authHeaders(), body: form
-      });
-      const data: { success?: boolean; error?: string } = await res.json();
-      if (!res.ok || !data.success) throw new Error(data.error || 'Yuklanmadi');
-      showToast("✅ Chek yuborildi, admin tekshiradi");
-      updateTracking(trackingId);
-    } catch (e) {
-      showToast("❌ " + ((e instanceof Error && e.message) || "Chek yuborilmadi"));
-    } finally {
-      setReceiptUploading(false);
-    }
-  }
 
   async function rateOrder(rating: number): Promise<void> {
     try {
@@ -1183,51 +1158,30 @@ export default function App() {
               <div className="address-label">💳 {t('paymentMethod', lang)}</div>
               <div className="payment-options">
                 <button type="button"
+                  className={`payment-option click-opt${paymentMethod === 'click' ? ' active' : ''}`}
+                  onClick={() => setPaymentMethod('click')}>
+                  <span className="payment-option-icon" style={{ color: '#00B159' }}>🟢</span>
+                  <span className="payment-option-title">{t('clickPay', lang)}</span>
+                  <span className="payment-option-sub">{t('clickPaySub', lang)}</span>
+                </button>
+                <button type="button"
+                  className={`payment-option payme-opt${paymentMethod === 'payme' ? ' active' : ''}`}
+                  onClick={() => setPaymentMethod('payme')}>
+                  <span className="payment-option-icon" style={{ color: '#00CCCC' }}>🔵</span>
+                  <span className="payment-option-title">{t('paymePay', lang)}</span>
+                  <span className="payment-option-sub">{t('paymePaySub', lang)}</span>
+                </button>
+                <button type="button"
                   className={`payment-option${paymentMethod === 'cash' ? ' active' : ''}`}
                   onClick={() => setPaymentMethod('cash')}>
                   <span className="payment-option-icon">💵</span>
                   <span className="payment-option-title">{t('cash', lang)}</span>
                   <span className="payment-option-sub">{t('cashDelivery', lang)}</span>
                 </button>
-                <button type="button"
-                  className={`payment-option${paymentMethod === 'card_transfer' ? ' active' : ''}`}
-                  onClick={() => setPaymentMethod('card_transfer')}>
-                  <span className="payment-option-icon">💳</span>
-                  <span className="payment-option-title">{t('cardTransfer', lang)}</span>
-                  <span className="payment-option-sub">{t('transferReceipt', lang)}</span>
-                </button>
               </div>
-              {paymentMethod === 'card_transfer' && (
-                <div className="payment-card-panel">
-                  <p className="payment-hint">
-                    Buyurtma bergach, jami summani quyidagi kartaga o'tkazing va chekni buyurtma holati oynasidan yuboring.
-                  </p>
-                  {paymentInfoLoading && <div className="payment-card-message">⏳ Karta ma'lumotlari yuklanmoqda...</div>}
-                  {!paymentInfoLoading && paymentInfoError && (
-                    <div className="payment-card-message payment-card-error">
-                      {paymentInfoError}
-                      <button type="button" className="payment-retry" onClick={() => void loadPaymentInfo()}>
-                        Qayta urinish
-                      </button>
-                    </div>
-                  )}
-                  {!paymentInfoLoading && !paymentInfoError && paymentInfo?.card_number && (
-                    <div className="payment-card">
-                      <div className="payment-card-brand">FOOD CITY <span>VISA / HUMO</span></div>
-                      <div className="payment-card-number">{paymentInfo.card_number}</div>
-                      <div className="payment-card-footer">
-                        <span>{paymentInfo.card_holder || 'KARTA EGASI'}</span>
-                        <button type="button" className="payment-copy" onClick={() => void copyCardNumber()}>
-                          📋 Nusxalash
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                  {!paymentInfoLoading && !paymentInfoError && !paymentInfo?.card_number && (
-                    <div className="payment-card-message payment-card-error">
-                      Karta raqami hozircha mavjud emas. Iltimos, do'kon bilan bog'laning.
-                    </div>
-                  )}
+              {(paymentMethod === 'click' || paymentMethod === 'payme') && (
+                <div style={{ marginTop: 10, padding: '10px 14px', borderRadius: 12, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', fontSize: 12, color: 'var(--text2)' }}>
+                  ⚡ {paymentMethod === 'click' ? 'Click' : 'Payme'} orqali 1-click tezkor to'lov. Chek yuklash talab etilmaydi!
                 </div>
               )}
             </div>
@@ -1438,68 +1392,38 @@ export default function App() {
                   💵 Naqd pul — {trackingPayment.total.toLocaleString()} so'm yetkazilganda kuryerga beriladi
                 </div>
               ) : trackingPayment.status === 'paid' ? (
-                <div style={{ color: '#00C853', fontWeight: 700 }}>✅ To'lov qabul qilindi</div>
-              ) : (
-                <div>
-                  {(!trackingPayment.receiptUrl || trackingPayment.status === 'rejected') && (
-                    <div className="receipt-instructions" role="note">
-                      <strong>Chek yuborish zarur</strong>
-                      <span>Avval ko‘rsatilgan kartaga to‘lov qiling, so‘ng chek skrinshotini tanlab yuboring.</span>
-                    </div>
-                  )}
-                  <div style={{ color: '#fff', fontWeight: 700, marginBottom: 8 }}>
-                    {trackingPayment.status === 'rejected'
-                      ? "❌ Chek qabul qilinmadi. Iltimos, to'g'ri chekni qayta yuboring."
-                      : trackingPayment.receiptUrl
-                        ? "⏳ Chek yuborildi, admin tekshirmoqda..."
-                        : `Quyidagi kartaga ${trackingPayment.total.toLocaleString()} so'm o'tkazing:`}
+                <div className="payment-status-box paid">
+                  <div style={{ color: '#00C853', fontWeight: 800, fontSize: 16 }}>
+                    ✅ To'lov qabul qilindi {trackingPayment.method === 'click' ? '(Click)' : trackingPayment.method === 'payme' ? '(Payme)' : ''}
                   </div>
-                  {(!trackingPayment.receiptUrl || trackingPayment.status === 'rejected') && (
-                    <>
-                      {paymentInfoLoading ? (
-                        <div className="payment-card-message">⏳ Karta ma'lumotlari yuklanmoqda...</div>
-                      ) : paymentInfo && paymentInfo.card_number ? (
-                        <div className="payment-card">
-                          <div className="payment-card-brand">FOOD CITY <span>VISA / HUMO</span></div>
-                          <div className="payment-card-number">{paymentInfo.card_number}</div>
-                          <div className="payment-card-footer">
-                            <span>{paymentInfo.card_holder || 'KARTA EGASI'}</span>
-                            <button type="button" className="payment-copy" onClick={() => void copyCardNumber()}>
-                              📋 Nusxalash
-                            </button>
-                          </div>
-                        </div>
-                      ) : (
-                        <div style={{ color: '#FFD4A3', fontSize: 13, marginBottom: 12 }}>
-                          {paymentInfoError || "Karta raqami hali kiritilmagan. Iltimos, do'kon bilan bog'laning."}
-                          {paymentInfoError && (
-                            <button type="button" className="payment-retry" onClick={() => void loadPaymentInfo()}>
-                              Qayta urinish
-                            </button>
-                          )}
-                        </div>
-                      )}
-                      <button type="button" className="receipt-upload-button"
-                        disabled={receiptUploading}
-                        onClick={() => receiptInputRef.current?.click()}>
-                        {receiptUploading ? '⏳ Yuklanmoqda...' : '📤 Chek (skrinshot) yuborish'}
-                      </button>
-                      <input
-                        ref={receiptInputRef}
-                        className="receipt-file-input"
-                        type="file"
-                        accept="image/jpeg,image/png,image/webp"
-                        aria-label="To'lov chekini tanlash"
-                        disabled={receiptUploading}
-                        onChange={e => {
-                          const input = e.currentTarget;
-                          const file = input.files?.[0];
-                          input.value = '';
-                          if (file) void uploadReceipt(file);
-                        }}
-                      />
-                    </>
-                  )}
+                  <div style={{ color: 'var(--text2)', fontSize: 12, marginTop: 4 }}>
+                    To'langan summa: {trackingPayment.total.toLocaleString()} so'm
+                  </div>
+                </div>
+              ) : (
+                <div className="payment-status-box pending">
+                  <div style={{ color: '#FFB800', fontWeight: 800, fontSize: 15, marginBottom: 6 }}>
+                    <span className="payment-pulse"></span>
+                    {trackingPayment.method === 'click' ? 'Click' : 'Payme'} orqali to'lov kutilmoqda
+                  </div>
+                  <div style={{ color: '#fff', fontSize: 14, fontWeight: 700, marginBottom: 8 }}>
+                    Jami summa: {trackingPayment.total.toLocaleString()} so'm
+                  </div>
+                  <p style={{ color: 'var(--text2)', fontSize: 12, marginBottom: 8 }}>
+                    To'lovni amalga oshirish uchun quyidagi tugmani bosing:
+                  </p>
+                  <button
+                    type="button"
+                    className={`payment-cta-button ${trackingPayment.method === 'click' ? 'click-btn' : 'payme-btn'}`}
+                    onClick={() => {
+                      if (trackingPayment.paymentUrl) {
+                        openPaymentUrl(trackingPayment.paymentUrl);
+                      } else {
+                        void fetchPaymentLink(trackingId || '', trackingPayment.method);
+                      }
+                    }}>
+                    {trackingPayment.method === 'click' ? '🟢 Click orqali to‘lash' : '🔵 Payme orqali to‘lash'}
+                  </button>
                 </div>
               )}
             </div>

@@ -164,7 +164,38 @@ You can add menu items two ways:
 1. Telegram Bot: `/menu_add` command. It uses FSM state.
 2. Web Admin Panel: Navigate to "Menyu" -> "+ Yangi taom".
 
-## Future expansions
-- Payment integration: Currently naqd (cash) only. For Payme/Click, modify the frontend cart payload and the backend `create_order` handler inside `customer.py` to generate invoice links using `bot.send_invoice`.
+## To'lov Tizimlari: Click & Payme (Avtomatlashtirilgan & Xavfsiz)
 
-┌──────────────────────────────────────────────────────────────────────┐
+Loyihada **Click** va **Payme** to'lov tizimlari to'liq integratsiya qilingan. Soxta cheklar xavfi 100% bartaraf etilgan: to'lovlar server-to-server webhook, raqamli imzo (HMAC/MD5) va DB summasi asosida avtomatik tasdiqlanadi.
+
+### 1. Supabase Migratsiyasi
+Supabase SQL Editor'da yangi migratsiyani yurgizing:
+`supabase/migrations/008_click_payme_integration.sql`
+
+### 2. Click Merchant sozlamalari
+Click kabinetida (merchant.click.uz) quyidagi Webhook manzillarini kiriting:
+- **Prepare URL**: `https://<sizning-backend-domeningiz>/api/payments/click/prepare`
+- **Complete URL**: `https://<sizning-backend-domeningiz>/api/payments/click/complete`
+
+`.env` faylida yoki Admin Panel -> Sozlamalar bo'limida kalitlarni kiriting:
+```env
+CLICK_SERVICE_ID=...
+CLICK_MERCHANT_ID=...
+CLICK_SECRET_KEY=...
+CLICK_MERCHANT_USER_ID=...
+```
+
+### 3. Payme Business sozlamalari
+Payme Business kabinetida (business.payme.uz) endpoint manzilini kiriting:
+- **Endpoint URL**: `https://<sizning-backend-domeningiz>/api/payments/payme`
+
+`.env` faylida yoki Admin Panel -> Sozlamalar bo'limida kalitlarni kiriting:
+```env
+PAYME_MERCHANT_ID=...
+PAYME_SECRET_KEY=...
+PAYME_TEST_MODE=true  # Production uchun false
+```
+
+### 4. Mijoz to'lov jarayoni (UX)
+Mijoz savatda **Click** yoki **Payme** ni tanlab "Buyurtma berish" tugmasini bosishi bilanoq, Telegram Mini App ichidan to'g'ridan-to'g'ri Click/Payme ilovasiga o'tadi va 1 ta bosishda to'lovni tasdiqlaydi. Chek yuklash talab etilmaydi! To'lov tushishi bilan oshxona va adminga darhol avtomatik bildirishnoma boradi.
+

@@ -28,6 +28,16 @@ class Settings(BaseSettings):
     DELIVERY_FEE: int = 15000
     PORT: int = 8000
 
+    # ── Click & Payme Payment Settings ─────────────────────────
+    CLICK_SERVICE_ID: str = ""
+    CLICK_MERCHANT_ID: str = ""
+    CLICK_SECRET_KEY: str = ""
+    CLICK_MERCHANT_USER_ID: str = ""
+
+    PAYME_MERCHANT_ID: str = ""
+    PAYME_SECRET_KEY: str = ""
+    PAYME_TEST_MODE: bool = True
+
     # ── Storage (Phase 2) ──────────────────────────────────────
     # Supabase Storage bucket name — must be created manually in dashboard
     STORAGE_BUCKET: str = "menu-images"
