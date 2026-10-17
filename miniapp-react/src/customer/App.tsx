@@ -3,6 +3,7 @@ import { Bell, Bike, Headset, Home, Info, Languages, Mail, Menu as MenuIcon, Moo
 import { API_BASE, tg, supabaseClient, user, lang, strings, categoryGradients, DEFAULT_GRADIENT, DELIVERY_FEE, authHeaders, menuItemImageUrl } from './config';
 import { AVATARS, AVATAR_KEY, saveAvatar } from './avatars';
 import { t } from './i18n';
+import { ClickLogo, PaymeLogo, CashLogo } from './PaymentIcons';
 import type { MenuItem, Category, Cart, AppliedCoupon, UserOrder, OrderStatus, Profile, Avatar, Promotion } from './types';
 
 interface TrackingPayment {
@@ -1160,21 +1161,30 @@ export default function App() {
                 <button type="button"
                   className={`payment-option click-opt${paymentMethod === 'click' ? ' active' : ''}`}
                   onClick={() => setPaymentMethod('click')}>
-                  <span className="payment-option-icon" style={{ color: '#00B159' }}>🟢</span>
+                  <span className="payment-option-check">✓</span>
+                  <span className="payment-option-icon">
+                    <ClickLogo size={36} />
+                  </span>
                   <span className="payment-option-title">{t('clickPay', lang)}</span>
                   <span className="payment-option-sub">{t('clickPaySub', lang)}</span>
                 </button>
                 <button type="button"
                   className={`payment-option payme-opt${paymentMethod === 'payme' ? ' active' : ''}`}
                   onClick={() => setPaymentMethod('payme')}>
-                  <span className="payment-option-icon" style={{ color: '#00CCCC' }}>🔵</span>
+                  <span className="payment-option-check">✓</span>
+                  <span className="payment-option-icon">
+                    <PaymeLogo size={36} />
+                  </span>
                   <span className="payment-option-title">{t('paymePay', lang)}</span>
                   <span className="payment-option-sub">{t('paymePaySub', lang)}</span>
                 </button>
                 <button type="button"
-                  className={`payment-option${paymentMethod === 'cash' ? ' active' : ''}`}
+                  className={`payment-option cash-opt${paymentMethod === 'cash' ? ' active' : ''}`}
                   onClick={() => setPaymentMethod('cash')}>
-                  <span className="payment-option-icon">💵</span>
+                  <span className="payment-option-check">✓</span>
+                  <span className="payment-option-icon">
+                    <CashLogo size={36} />
+                  </span>
                   <span className="payment-option-title">{t('cash', lang)}</span>
                   <span className="payment-option-sub">{t('cashDelivery', lang)}</span>
                 </button>
@@ -1422,7 +1432,17 @@ export default function App() {
                         void fetchPaymentLink(trackingId || '', trackingPayment.method);
                       }
                     }}>
-                    {trackingPayment.method === 'click' ? '🟢 Click orqali to‘lash' : '🔵 Payme orqali to‘lash'}
+                    {trackingPayment.method === 'click' ? (
+                      <>
+                        <ClickLogo size={24} />
+                        <span>Click orqali to‘lash</span>
+                      </>
+                    ) : (
+                      <>
+                        <PaymeLogo size={24} />
+                        <span>Payme orqali to‘lash</span>
+                      </>
+                    )}
                   </button>
                 </div>
               )}
