@@ -76,6 +76,7 @@ export interface AdminUser {
   id: number;
   full_name?: string | null;
   username?: string | null;
+  phone?: string | null;
   total_orders?: number | null;
   total_spent?: number | null;
   loyalty_points?: number | null;

@@ -149,16 +149,22 @@ export function Promotions({ ctx }: { ctx: AdminCtx }) {
 
   return (
     <div className="promo-admin">
-      <header className="promo-admin-header">
-        <div>
-          <span className="promo-eyebrow">MIJOZ MINI APP</span>
-          <h1>Stories & Banner</h1>
-          <p>Bosh sahifadagi stories va aksiyalar bannerlarini boshqaring.</p>
+      <div className="page-header-container">
+        <div className="page-header-left">
+          <div className="page-header-title">
+            <span>🖼</span>
+            <span>Stories & Bannerlar</span>
+          </div>
+          <div className="page-header-subtitle">
+            Mijoz mini app bosh sahifasidagi vizual hikoyalar va aksiya bannerlari
+          </div>
         </div>
-        <button className="btn btn-outline" onClick={() => void loadPromotions()} disabled={loading}>
-          <RefreshCw size={16} /> Yangilash
-        </button>
-      </header>
+        <div className="page-header-right">
+          <button className="btn btn-outline sm" onClick={() => void loadPromotions()} disabled={loading}>
+            <RefreshCw size={14} /> Yangilash
+          </button>
+        </div>
+      </div>
 
       <div className="promo-admin-layout">
         <form className="promo-editor" onSubmit={savePromo}>

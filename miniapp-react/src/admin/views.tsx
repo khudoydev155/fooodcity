@@ -373,6 +373,7 @@ export function Dashboard({ ctx }: { ctx: AdminCtx }) {
   const [statsError, setStatsError] = useState(false);
   const [analyticsError, setAnalyticsError] = useState(false);
   const [filterTick, setFilterTick] = useState(0);
+  const [activeFilter, setActiveFilter] = useState<DateFilterType>('today');
   const dateRef = useRef<{ start: string; end: string }>({ start: '', end: '' });
   const pickerInput = useRef<HTMLInputElement | null>(null);
   const pickerInstance = useRef<FlatpickrInstance | null>(null);
@@ -509,6 +510,7 @@ export function Dashboard({ ctx }: { ctx: AdminCtx }) {
   }, []);
 
   function setDateFilter(type: DateFilterType): void {
+    setActiveFilter(type);
     const start = new Date();
     const end = new Date();
     if (type === 'today') {
@@ -565,103 +567,218 @@ export function Dashboard({ ctx }: { ctx: AdminCtx }) {
 
   return (
     <>
-      <div className="page-title" style={{ flexWrap: 'wrap', gap: '1rem' }}>
-        <span>📈 Dashboard Analitika</span>
-        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
-          <button className="btn btn-outline sm" onClick={() => setDateFilter('today')}>Bugun</button>
-          <button className="btn btn-outline sm" onClick={() => setDateFilter('yesterday')}>Kecha</button>
-          <button className="btn btn-outline sm" onClick={() => setDateFilter('7days')}>7 Kun</button>
-          <button className="btn btn-outline sm" onClick={() => setDateFilter('thisMonth')}>Shu oy</button>
-          <input type="text" ref={pickerInput} className="form-input" style={{ width: '100%', maxWidth: 280, padding: '0.4rem 0.8rem', fontSize: '0.85rem' }} placeholder="Vaqtni tanlang..." />
-          <button className="btn btn-success" onClick={downloadExcel}>📥 Excel</button>
+      <div className="page-header-container">
+        <div className="page-header-left">
+          <div className="page-header-title">
+            <span>📈</span>
+            <span>Dashboard & Analitika</span>
+          </div>
+          <div className="page-header-subtitle">
+            Savdo statistikasi, tushum dinamikasi va mijozlar faolligi
+          </div>
+        </div>
+
+        <div className="page-header-right">
+          <div className="segmented-control" role="group" aria-label="Sana filtri">
+            <button
+              type="button"
+              className={`segment-btn${activeFilter === 'today' ? ' active' : ''}`}
+              onClick={() => setDateFilter('today')}
+            >
+              Bugun
+            </button>
+            <button
+              type="button"
+              className={`segment-btn${activeFilter === 'yesterday' ? ' active' : ''}`}
+              onClick={() => setDateFilter('yesterday')}
+            >
+              Kecha
+            </button>
+            <button
+              type="button"
+              className={`segment-btn${activeFilter === '7days' ? ' active' : ''}`}
+              onClick={() => setDateFilter('7days')}
+            >
+              7 Kun
+            </button>
+            <button
+              type="button"
+              className={`segment-btn${activeFilter === 'thisMonth' ? ' active' : ''}`}
+              onClick={() => setDateFilter('thisMonth')}
+            >
+              Shu oy
+            </button>
+          </div>
+
+          <div className="date-picker-wrapper">
+            <span className="date-picker-icon">📅</span>
+            <input
+              type="text"
+              ref={pickerInput}
+              className="date-picker-input"
+              placeholder="Sanani tanlang..."
+            />
+          </div>
+
+          <button type="button" className="btn btn-success" onClick={downloadExcel}>
+            <span>📥</span>
+            <span>Excel Hisobot</span>
+          </button>
         </div>
       </div>
 
-      <div className="stats-grid dashboard-kpis">
+      <div className="bento-grid">
         {!stats ? (
           statsError ? (
-            <div className="admin-data-error" role="alert">
+            <div className="admin-data-error" role="alert" style={{ gridColumn: '1 / -1' }}>
               Statistikani yuklab bo'lmadi.
               <button className="btn btn-outline sm" onClick={fetchStats}>Qayta urinish</button>
             </div>
-          ) : [1, 2, 3, 4].map(i => <div key={i} className="stat-card skeleton" style={{ height: 100 }}></div>)
+          ) : [1, 2, 3, 4, 5, 6, 7, 8].map(i => <div key={i} className="bento-card skeleton" style={{ height: 130 }}></div>)
         ) : (
           <>
             {statsError && (
-              <div className="admin-data-warning" role="status">
+              <div className="admin-data-warning" role="status" style={{ gridColumn: '1 / -1' }}>
                 Yangilashda xatolik. Quyidagi qiymatlar oxirgi muvaffaqiyatli yuklangan ma'lumotlar.
                 <button className="btn btn-outline sm" onClick={fetchStats}>Qayta urinish</button>
               </div>
             )}
-            <div className="stat-card">
-              <span className="stat-label">Tanlangan davrdagi buyurtmalar</span>
-              <div className="stat-value">{stats.today?.orders ?? stats.today_count ?? 0} {getTrend(stats.today?.orders_diff ?? stats.today_count_diff ?? 0)}</div>
-            </div>
-            <div className="stat-card">
-              <span className="stat-label">Tasdiqlangan tushum</span>
-              <div className="stat-value">{(stats.today?.revenue ?? stats.today_revenue ?? 0).toLocaleString()} <span style={{ fontSize: '0.8rem', marginLeft: 4, color: 'var(--gray)' }}>sum</span> {getTrend(stats.today?.revenue_diff ?? stats.today_revenue_diff ?? 0)}</div>
-              <div className="stat-footnote">{stats.today?.paid_orders ?? 0} ta to'langan buyurtma</div>
-            </div>
-            <div className="stat-card">
-              <span className="stat-label">Jami Foydalanuvchilar</span>
-              <div className="stat-value">{stats.total_users || 0}</div>
-            </div>
-            <div className="stat-card">
-              <span className="stat-label">O'rtacha to'langan chek</span>
-              <div className="stat-value">{(stats.today?.average_order_value ?? Math.round((stats.today?.revenue ?? stats.today_revenue ?? 0) / Math.max(1, (stats.today?.orders ?? stats.today_count ?? 0) - (stats.today?.cancelled_orders ?? 0)))).toLocaleString()} <span style={{ fontSize: '0.8rem', marginLeft: 4, color: 'var(--gray)' }}>sum</span></div>
-            </div>
-            <div className="stat-card">
-              <span className="stat-label">Faol buyurtmalar</span>
-              <div className="stat-value">{stats.today?.active_orders ?? 0}</div>
-            </div>
-            <div className="stat-card">
-              <span className="stat-label">Yetkazilgan</span>
-              <div className="stat-value">{stats.today?.delivered_orders ?? 0}</div>
-            </div>
-            <div className="stat-card">
-              <span className="stat-label">Bekor qilingan</span>
-              <div className="stat-value">{stats.today?.cancelled_orders ?? 0}</div>
-            </div>
-            <div className="stat-card">
-              <span className="stat-label">Undirilmagan summa</span>
-              <div className="stat-value">{(stats.today?.pending_payment_amount ?? 0).toLocaleString()} <span style={{ fontSize: '0.8rem', marginLeft: 4, color: 'var(--gray)' }}>sum</span></div>
-              <div className="stat-footnote">{stats.today?.pending_payment_orders ?? 0} ta to'lanmagan buyurtma</div>
-            </div>
-            <div className="stat-card">
-              <span className="stat-label">Buyurtma qilgan mijozlar</span>
-              <div className="stat-value">{stats.today?.unique_customers ?? 0}</div>
-            </div>
-            <div className="stat-card">
-              <span className="stat-label">Yetkazish darajasi</span>
-              <div className="stat-value">{stats.today?.delivery_rate ?? 0}%</div>
-            </div>
-            <div className="stat-card">
-              <span className="stat-label">Bekor qilish darajasi</span>
-              <div className="stat-value">{stats.today?.cancellation_rate ?? 0}%</div>
-            </div>
-            {returningPercent !== null && (
-              <div className="stat-card">
-                <span className="stat-label">Qayta xarid qilganlar (umumiy)</span>
-                <div className="stat-value">{returningPercent}% <span style={{ fontSize: '0.8rem', marginLeft: 4, color: 'var(--gray)' }}>mijozlar</span></div>
+
+            <div className="bento-card">
+              <div className="bento-card-top">
+                <span className="bento-card-title">Buyurtmalar</span>
+                <span className="bento-card-icon" style={{ background: 'rgba(255, 107, 0, 0.15)', color: '#FF6B00' }}>📦</span>
               </div>
-            )}
+              <div className="bento-card-value">
+                {stats.today?.orders ?? stats.today_count ?? 0}
+                <span className="bento-card-unit">ta</span>
+              </div>
+              <div className="bento-card-footer">
+                <span>Davr bo'yicha</span>
+                {getTrend(stats.today?.orders_diff ?? stats.today_count_diff ?? 0)}
+              </div>
+            </div>
+
+            <div className="bento-card">
+              <div className="bento-card-top">
+                <span className="bento-card-title">Tasdiqlangan tushum</span>
+                <span className="bento-card-icon" style={{ background: 'rgba(16, 185, 129, 0.15)', color: '#10B981' }}>💰</span>
+              </div>
+              <div className="bento-card-value">
+                {(stats.today?.revenue ?? stats.today_revenue ?? 0).toLocaleString()}
+                <span className="bento-card-unit">so'm</span>
+              </div>
+              <div className="bento-card-footer">
+                <span>{stats.today?.paid_orders ?? 0} ta to'langan</span>
+                {getTrend(stats.today?.revenue_diff ?? stats.today_revenue_diff ?? 0)}
+              </div>
+            </div>
+
+            <div className="bento-card">
+              <div className="bento-card-top">
+                <span className="bento-card-title">O'rtacha chek</span>
+                <span className="bento-card-icon" style={{ background: 'rgba(59, 130, 246, 0.15)', color: '#3B82F6' }}>🧾</span>
+              </div>
+              <div className="bento-card-value">
+                {(stats.today?.average_order_value ?? Math.round((stats.today?.revenue ?? stats.today_revenue ?? 0) / Math.max(1, (stats.today?.orders ?? stats.today_count ?? 0) - (stats.today?.cancelled_orders ?? 0)))).toLocaleString()}
+                <span className="bento-card-unit">so'm</span>
+              </div>
+              <div className="bento-card-footer">
+                <span>1 xarid uchun o'rtacha</span>
+              </div>
+            </div>
+
+            <div className="bento-card">
+              <div className="bento-card-top">
+                <span className="bento-card-title">Faol buyurtmalar</span>
+                <span className="bento-card-icon" style={{ background: 'rgba(245, 158, 11, 0.15)', color: '#F59E0B' }}>🚀</span>
+              </div>
+              <div className="bento-card-value">
+                {stats.today?.active_orders ?? 0}
+                <span className="bento-card-unit">jarayonda</span>
+              </div>
+              <div className="bento-card-footer">
+                <span>Oshxona & Kuryerda</span>
+              </div>
+            </div>
+
+            <div className="bento-card">
+              <div className="bento-card-top">
+                <span className="bento-card-title">Yetkazilgan</span>
+                <span className="bento-card-icon" style={{ background: 'rgba(16, 185, 129, 0.15)', color: '#10B981' }}>✅</span>
+              </div>
+              <div className="bento-card-value">
+                {stats.today?.delivered_orders ?? 0}
+                <span className="bento-card-unit">ta</span>
+              </div>
+              <div className="bento-card-footer">
+                <span>Yetkazish: {stats.today?.delivery_rate ?? 0}%</span>
+              </div>
+            </div>
+
+            <div className="bento-card">
+              <div className="bento-card-top">
+                <span className="bento-card-title">Bekor qilingan</span>
+                <span className="bento-card-icon" style={{ background: 'rgba(239, 68, 68, 0.15)', color: '#EF4444' }}>❌</span>
+              </div>
+              <div className="bento-card-value">
+                {stats.today?.cancelled_orders ?? 0}
+                <span className="bento-card-unit">ta</span>
+              </div>
+              <div className="bento-card-footer">
+                <span>Bekor qilish: {stats.today?.cancellation_rate ?? 0}%</span>
+              </div>
+            </div>
+
+            <div className="bento-card">
+              <div className="bento-card-top">
+                <span className="bento-card-title">Undirilmagan summa</span>
+                <span className="bento-card-icon" style={{ background: 'rgba(239, 68, 68, 0.15)', color: '#EF4444' }}>⏳</span>
+              </div>
+              <div className="bento-card-value">
+                {(stats.today?.pending_payment_amount ?? 0).toLocaleString()}
+                <span className="bento-card-unit">so'm</span>
+              </div>
+              <div className="bento-card-footer">
+                <span>{stats.today?.pending_payment_orders ?? 0} ta to'lanmagan</span>
+              </div>
+            </div>
+
+            <div className="bento-card">
+              <div className="bento-card-top">
+                <span className="bento-card-title">Jami Mijozlar</span>
+                <span className="bento-card-icon" style={{ background: 'rgba(139, 92, 246, 0.15)', color: '#8B5CF6' }}>👥</span>
+              </div>
+              <div className="bento-card-value">
+                {stats.total_users || 0}
+                <span className="bento-card-unit">ta</span>
+              </div>
+              <div className="bento-card-footer">
+                <span>Faol: {stats.today?.unique_customers ?? 0} ta {returningPercent !== null ? `| Qayta: ${returningPercent}%` : ''}</span>
+              </div>
+            </div>
           </>
         )}
       </div>
 
       <div className="stats-grid dashboard-charts">
         <div className="stat-card">
-          <h3 style={{ fontSize: '1rem', marginBottom: '1rem', color: 'var(--gray)' }}>Tushumlar Dinamikasi</h3>
+          <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '1rem', color: '#E2E8F0', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <span>📊</span>
+            <span>Tushumlar Dinamikasi</span>
+          </h3>
           {analyticsError && <div className="admin-data-error" role="alert">Analitikani yuklab bo'lmadi. <button className="btn btn-outline sm" onClick={renderAnalytics}>Qayta urinish</button></div>}
-          <canvas ref={revCanvas} style={{ maxHeight: 250 }}></canvas>
+          <canvas ref={revCanvas} style={{ maxHeight: 260 }}></canvas>
         </div>
         <div className="stat-card">
-          <h3 style={{ fontSize: '1rem', marginBottom: '1rem', color: 'var(--gray)' }}>Top Mahsulotlar (Soni)</h3>
+          <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '1rem', color: '#E2E8F0', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <span>🍩</span>
+            <span>Top Mahsulotlar (Soni)</span>
+          </h3>
           {analyticsError && <div className="admin-data-error" role="alert">Analitikani yuklab bo'lmadi.</div>}
-          <canvas ref={topCanvas} style={{ maxHeight: 250 }}></canvas>
+          <canvas ref={topCanvas} style={{ maxHeight: 260 }}></canvas>
         </div>
       </div>
-
     </>
   );
 }
@@ -757,20 +874,36 @@ export function Orders({ ctx }: { ctx: AdminCtx }) {
 
   return (
     <>
-      <div className="page-title">
-        <div className="orders-heading">
-          <span>📦 Buyurtmalar</span>
-          <small>Yangi zakazlar shu yerga tushadi va har 10 soniyada yangilanadi</small>
+      <div className="page-header-container">
+        <div className="page-header-left">
+          <div className="page-header-title">
+            <span>📦</span>
+            <span>Buyurtmalar Boshqaruvi</span>
+          </div>
+          <div className="page-header-subtitle">
+            Jonli buyurtmalar oqimi, oshxona va kuryer holatlari nazorati
+          </div>
         </div>
-        <div className="orders-toolbar">
-          <span className="orders-live-indicator"><i /> Jonli yangilanish</span>
+        <div className="page-header-right">
+          <span className="orders-live-indicator"><i /> Jonli</span>
           <button className="btn btn-outline sm" disabled={refreshing} onClick={() => { setRefreshing(true); void loadOrders(); }}>
             {refreshing ? 'Yangilanmoqda...' : '↻ Yangilash'}
           </button>
-          <input type="search" className="form-input" aria-label="Buyurtmalarni qidirish" placeholder="ID, ism, username yoki telefon..."
-            value={query} onChange={e => setQuery(e.target.value)} />
+          <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
+            <span style={{ position: 'absolute', left: '0.75rem', color: 'var(--gray)', pointerEvents: 'none', fontSize: '0.85rem' }}>🔍</span>
+            <input
+              type="search"
+              className="form-input"
+              style={{ paddingLeft: '2.1rem', width: '250px' }}
+              aria-label="Buyurtmalarni qidirish"
+              placeholder="ID, ism yoki telefon..."
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+            />
+          </div>
         </div>
       </div>
+
       <div className="tabs">
         {ORDER_TABS.map(t => {
           const tabCount = t.status ? counts[t.status] || 0 : orders?.length || 0;
@@ -1190,6 +1323,23 @@ function MenuFormBody({ item, saveRef, ctx, reload }: {
 export function MenuView({ ctx }: { ctx: AdminCtx }) {
   const { showToast, openModal } = ctx;
   const [menu, setMenu] = useState<AdminMenuItem[] | null | 'error'>(null);
+  const [categoriesList, setCategoriesList] = useState<AdminCategory[]>([]);
+  const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  const [menuSearch, setMenuSearch] = useState<string>('');
+
+  const loadCategories = useCallback(async (): Promise<void> => {
+    try {
+      const res = await fetch(`${API_BASE}/api/menu/categories`, {
+        headers: { 'Authorization': `Bearer ${getToken()}` }
+      });
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        setCategoriesList(data);
+      }
+    } catch (e) {
+      console.error('Failed to load categories', e);
+    }
+  }, []);
 
   const loadMenu = useCallback(async (): Promise<void> => {
     try {
@@ -1198,7 +1348,10 @@ export function MenuView({ ctx }: { ctx: AdminCtx }) {
     } catch (err) { setMenu('error'); }
   }, []);
 
-  useEffect(() => { loadMenu(); }, [loadMenu]);
+  useEffect(() => {
+    void loadMenu();
+    void loadCategories();
+  }, [loadMenu, loadCategories]);
 
   function openMenuFormModal(item: AdminMenuItem | null = null): void {
     const saveRef: SaveRef = { current: null };
@@ -1229,37 +1382,126 @@ export function MenuView({ ctx }: { ctx: AdminCtx }) {
     } catch (err) { showToast('Xatolik yuz berdi', 'error'); }
   }
 
+  const items = Array.isArray(menu) ? menu : [];
+  const categoryIds = Array.from(new Set(items.map(i => i.category_id).filter(Boolean)));
+  const catMap = new Map(categoriesList.map(c => [c.id, c]));
+
+  const filteredItems = items.filter(item => {
+    if (categoryFilter !== 'all' && item.category_id !== categoryFilter) return false;
+    if (menuSearch.trim()) {
+      const s = menuSearch.toLowerCase();
+      const matchName = (item.name_uz || '').toLowerCase().includes(s) || (item.name_ru || '').toLowerCase().includes(s);
+      if (!matchName) return false;
+    }
+    return true;
+  });
+
   return (
     <>
-      <div className="page-title">
-        <span>🍽 Menyu</span>
-        <button className="btn btn-primary" onClick={() => openMenuFormModal(null)}>+ Yangi taom</button>
-      </div>
-      <div className="menu-grid">
-        {menu === null && [1, 2, 3, 4, 5, 6].map(i => <div key={i} className="menu-card skeleton" style={{ height: 250 }}></div>)}
-        {menu === 'error' && 'Xatolik.'}
-        {Array.isArray(menu) && menu.map(item => (
-          <div className="menu-card" key={item.id}>
-            <div className="menu-img">
-              {item.image_url ? <img src={item.image_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : item.emoji}
-            </div>
-            <div className="menu-info">
-              <div className="menu-name">{item.name_uz}</div>
-              <div className="menu-cat">{item.category_id}</div>
-              <div className="menu-price-row">
-                <div className="menu-price">{item.price.toLocaleString()} sum</div>
-                <label className="switch">
-                  <input type="checkbox" checked={!!item.is_available} onChange={e => toggleItem(item.id, e.target.checked)} />
-                  <span className="slider"></span>
-                </label>
-              </div>
-              <div style={{ marginTop: '1rem', display: 'flex', gap: '0.5rem' }}>
-                <button className="btn btn-outline sm" onClick={() => openMenuFormModal(item)}>Tahrirlash</button>
-                <button className="btn btn-danger sm" onClick={() => deleteItem(item.id)}>🗑</button>
-              </div>
-            </div>
+      <div className="page-header-container">
+        <div className="page-header-left">
+          <div className="page-header-title">
+            <span>🍽</span>
+            <span>Menyu & Mahsulotlar</span>
           </div>
-        ))}
+          <div className="page-header-subtitle">
+            Katalogdagi taomlar, narxlar va oshxona qoldig'ini boshqarish
+          </div>
+        </div>
+        <div className="page-header-right">
+          <button className="btn btn-outline sm" onClick={() => { void loadMenu(); void loadCategories(); }}>↻ Yangilash</button>
+          <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
+            <span style={{ position: 'absolute', left: '0.75rem', color: 'var(--gray)', pointerEvents: 'none', fontSize: '0.85rem' }}>🔍</span>
+            <input
+              type="search"
+              className="form-input"
+              style={{ paddingLeft: '2.1rem', width: '200px' }}
+              placeholder="Taom qidirish..."
+              value={menuSearch}
+              onChange={e => setMenuSearch(e.target.value)}
+            />
+          </div>
+          <button className="btn btn-primary" onClick={() => openMenuFormModal(null)}>+ Yangi taom</button>
+        </div>
+      </div>
+
+      {categoryIds.length > 0 && (
+        <div className="segmented-control" style={{ marginBottom: '1.25rem', overflowX: 'auto', maxWidth: '100%' }}>
+          <button
+            type="button"
+            className={`segment-btn${categoryFilter === 'all' ? ' active' : ''}`}
+            onClick={() => setCategoryFilter('all')}
+          >
+            Barchasi ({items.length})
+          </button>
+          {categoryIds.map(catId => {
+            const catObj = catMap.get(catId);
+            const label = catObj ? `${catObj.emoji || ''} ${catObj.name_uz}`.trim() : `Kategoriya (${catId.slice(0, 6)})`;
+            return (
+              <button
+                key={catId}
+                type="button"
+                className={`segment-btn${categoryFilter === catId ? ' active' : ''}`}
+                onClick={() => setCategoryFilter(catId)}
+              >
+                {label} ({items.filter(i => i.category_id === catId).length})
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      <div className="menu-grid">
+        {menu === null && [1, 2, 3, 4, 5, 6].map(i => <div key={i} className="menu-card skeleton" style={{ height: 260 }}></div>)}
+        {menu === 'error' && (
+          <div className="admin-data-error" role="alert" style={{ gridColumn: '1 / -1' }}>
+            Menyu ma'lumotlarini yuklab bo'lmadi.
+            <button className="btn btn-outline sm" onClick={() => { void loadMenu(); void loadCategories(); }}>Qayta urinish</button>
+          </div>
+        )}
+        {Array.isArray(menu) && filteredItems.length === 0 && (
+          <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '3rem', color: 'var(--gray)' }}>
+            Taomlar topilmadi.
+          </div>
+        )}
+        {Array.isArray(menu) && filteredItems.map(item => {
+          const catObj = catMap.get(item.category_id);
+          const catName = catObj ? `${catObj.emoji || ''} ${catObj.name_uz}`.trim() : 'Asosiy';
+          return (
+            <div className="menu-card" key={item.id}>
+              <div className="menu-img" style={{ position: 'relative' }}>
+                {item.image_url ? (
+                  <img src={item.image_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                ) : (
+                  <span style={{ fontSize: '3rem' }}>{item.emoji || '🍽'}</span>
+                )}
+                {item.badge && (
+                  <span style={{ position: 'absolute', top: 10, left: 10, background: 'rgba(255, 107, 0, 0.9)', color: '#fff', fontSize: '0.72rem', fontWeight: 800, padding: '3px 8px', borderRadius: 6, backdropFilter: 'blur(4px)' }}>
+                    {item.badge}
+                  </span>
+                )}
+                <span style={{ position: 'absolute', top: 10, right: 10, background: item.is_available ? 'rgba(16, 185, 129, 0.9)' : 'rgba(239, 68, 68, 0.9)', color: '#fff', fontSize: '0.68rem', fontWeight: 700, padding: '2px 7px', borderRadius: 6 }}>
+                  {item.is_available ? 'Mavjud' : 'Tugagan'}
+                </span>
+              </div>
+              <div className="menu-info">
+                <div className="menu-name">{item.name_uz}</div>
+                <div className="menu-cat">{catName}</div>
+                <div className="menu-price-row">
+                  <div className="menu-price">{item.price.toLocaleString()} <span style={{ fontSize: '0.75rem', color: 'var(--gray)' }}>so'm</span></div>
+                  <label className="switch" title={item.is_available ? 'Mavjud' : 'Tugagan'}>
+                    <input type="checkbox" checked={!!item.is_available} onChange={e => toggleItem(item.id, e.target.checked)} />
+                    <span className="slider"></span>
+                  </label>
+                </div>
+                <div style={{ marginTop: '1rem', display: 'flex', gap: '0.5rem' }}>
+                  <button className="btn btn-outline sm" style={{ flex: 1 }} onClick={() => openMenuFormModal(item)}>Tahrirlash</button>
+                  <button className="btn btn-danger sm" onClick={() => deleteItem(item.id)} title="O'chirish">🗑</button>
+                </div>
+              </div>
+            </div>
+          );
+        })}
       </div>
     </>
   );
@@ -1298,43 +1540,112 @@ export function Users({ ctx }: { ctx: AdminCtx }) {
 
   return (
     <>
-      <div className="page-title">
-        <span>👥 Foydalanuvchilar</span>
-        <div className="orders-toolbar">
+      <div className="page-header-container">
+        <div className="page-header-left">
+          <div className="page-header-title">
+            <span>👥</span>
+            <span>Mijozlar Bazasi</span>
+          </div>
+          <div className="page-header-subtitle">
+            Ro'yxatdan o'tgan foydalanuvchilar, buyurtmalar soni va sodiqlik ballari
+          </div>
+        </div>
+        <div className="page-header-right">
           <button className="btn btn-outline sm" onClick={() => void loadUsers()}>↻ Yangilash</button>
-          <input type="search" className="form-input" placeholder="Qidirish..."
-            value={query} onChange={e => setQuery(e.target.value)} />
+          <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
+            <span style={{ position: 'absolute', left: '0.75rem', color: 'var(--gray)', pointerEvents: 'none', fontSize: '0.85rem' }}>🔍</span>
+            <input
+              type="search"
+              className="form-input"
+              style={{ paddingLeft: '2.1rem', width: '240px' }}
+              placeholder="Ism, username yoki telefon..."
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+            />
+          </div>
         </div>
       </div>
+
       <div className="table-container">
         <table>
-          <thead><tr><th></th><th>Ism</th><th>User</th><th>B-lar</th><th>Xarajat</th><th>Ball</th><th>Sana</th><th>Status</th><th></th></tr></thead>
+          <thead>
+            <tr>
+              <th>Mijoz</th>
+              <th>Telefon</th>
+              <th>Buyurtmalar</th>
+              <th>Jami Xarajat</th>
+              <th>Sodiqlik Ballari</th>
+              <th>Ro'yxatdan o'tgan</th>
+              <th>Holat</th>
+              <th>Amallar</th>
+            </tr>
+          </thead>
           <tbody>
-            {usersLoadState === 'loading' && <tr><td colSpan={9}>Foydalanuvchilar yuklanmoqda...</td></tr>}
+            {usersLoadState === 'loading' && (
+              <tr><td colSpan={8} style={{ textAlign: 'center', padding: '2rem' }}>Foydalanuvchilar yuklanmoqda...</td></tr>
+            )}
             {usersLoadState === 'error' && users.length === 0 && (
-              <tr><td colSpan={9} className="admin-data-error" role="alert">
-                Ma'lumotlarni yuklab bo'lmadi.
-                <button className="btn btn-outline sm" onClick={() => void loadUsers()}>Qayta urinish</button>
-              </td></tr>
+              <tr>
+                <td colSpan={8} className="admin-data-error" role="alert">
+                  Ma'lumotlarni yuklab bo'lmadi.
+                  <button className="btn btn-outline sm" onClick={() => void loadUsers()}>Qayta urinish</button>
+                </td>
+              </tr>
             )}
             {usersLoadState === 'error' && users.length > 0 && (
-              <tr><td colSpan={9} className="admin-data-warning" role="status">Yangilash muvaffaqiyatsiz. Oxirgi yuklangan ma'lumotlar ko'rsatilmoqda.</td></tr>
+              <tr>
+                <td colSpan={8} className="admin-data-warning" role="status">
+                  Yangilash muvaffaqiyatsiz. Oxirgi yuklangan ma'lumotlar ko'rsatilmoqda.
+                </td>
+              </tr>
             )}
             {usersLoadState === 'ready' && users.length === 0 && (
-              <tr><td colSpan={9} style={{ textAlign: 'center' }}>Foydalanuvchilar topilmadi.</td></tr>
+              <tr>
+                <td colSpan={8} style={{ textAlign: 'center', padding: '2rem', color: 'var(--gray)' }}>
+                  Foydalanuvchilar topilmadi.
+                </td>
+              </tr>
             )}
             {users.map(u => (
               <tr key={u.id}>
-                <td><div style={{ width: 32, height: 32, background: 'var(--sidebar-bg)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{(u.full_name || u.username || '?').charAt(0)}</div></td>
-                <td>{u.full_name || u.username || "Noma'lum"}</td>
-                <td>@{u.username || '-'}</td>
-                <td>{u.total_orders || 0}</td>
-                <td style={{ fontWeight: 600 }}>{(u.total_spent || 0).toLocaleString()} sum</td>
-                <td style={{ color: 'var(--primary)' }}>{u.loyalty_points || 0} pt</td>
-                <td>{new Date(u.created_at).toLocaleDateString()}</td>
-                <td><span className={`badge ${u.is_blocked ? 'badge-cancelled' : 'badge-delivered'}`}>{u.is_blocked ? 'Blok' : 'Faol'}</span></td>
                 <td>
-                  <button className="btn btn-outline sm" onClick={() => toggleUserBlock(u.id, !u.is_blocked)}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <div style={{ width: 34, height: 34, borderRadius: 10, background: 'linear-gradient(135deg, rgba(255,107,0,0.25), rgba(255,255,255,0.08))', border: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, color: '#FF922B', fontSize: '0.85rem' }}>
+                      {(u.full_name || u.username || '?').charAt(0).toUpperCase()}
+                    </div>
+                    <div>
+                      <div style={{ fontWeight: 700, color: '#fff' }}>{u.full_name || "Noma'lum"}</div>
+                      <div style={{ fontSize: '0.76rem', color: 'var(--gray)' }}>@{u.username || '-'}</div>
+                    </div>
+                  </div>
+                </td>
+                <td style={{ color: '#CBD5E1', fontSize: '0.84rem' }}>
+                  {u.phone ? <a href={`tel:${u.phone}`} style={{ color: '#10B981', fontWeight: 600 }}>{u.phone}</a> : '—'}
+                </td>
+                <td style={{ fontWeight: 650, fontVariantNumeric: 'tabular-nums' }}>
+                  {u.total_orders || 0} ta
+                </td>
+                <td style={{ fontWeight: 700, color: '#F8FAFC', fontVariantNumeric: 'tabular-nums' }}>
+                  {(u.total_spent || 0).toLocaleString()} <small style={{ color: 'var(--gray)', fontWeight: 500 }}>so'm</small>
+                </td>
+                <td>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', padding: '2px 8px', borderRadius: 999, background: 'rgba(255,107,0,0.12)', border: '1px solid rgba(255,107,0,0.25)', color: '#FFB800', fontWeight: 700, fontSize: '0.78rem' }}>
+                    ⭐ {u.loyalty_points || 0}
+                  </span>
+                </td>
+                <td style={{ color: 'var(--gray)', fontSize: '0.82rem' }}>
+                  {new Date(u.created_at).toLocaleDateString('uz-UZ')}
+                </td>
+                <td>
+                  <span className={`badge ${u.is_blocked ? 'badge-cancelled' : 'badge-delivered'}`}>
+                    {u.is_blocked ? 'Bloklangan' : 'Faol'}
+                  </span>
+                </td>
+                <td>
+                  <button
+                    className={`btn sm ${u.is_blocked ? 'btn-success' : 'btn-outline'}`}
+                    onClick={() => toggleUserBlock(u.id, !u.is_blocked)}
+                  >
                     {u.is_blocked ? 'Ochish' : 'Bloklash'}
                   </button>
                 </td>
@@ -1434,36 +1745,95 @@ export function Coupons({ ctx }: { ctx: AdminCtx }) {
 
   return (
     <>
-      <h1 className="page-title">🎟 Kuponlar <button className="btn btn-primary" onClick={openAddCouponModal}>+ Yangi</button></h1>
-      <div className="orders-toolbar" style={{ justifyContent: 'flex-end', marginBottom: '1rem' }}>
-        <button className="btn btn-outline sm" onClick={() => void loadCoupons()}>↻ Yangilash</button>
+      <div className="page-header-container">
+        <div className="page-header-left">
+          <div className="page-header-title">
+            <span>🎟</span>
+            <span>Kuponlar & Promokodlar</span>
+          </div>
+          <div className="page-header-subtitle">
+            Chegirma kodlari, foizlar va foydalanish limitlari nazorati
+          </div>
+        </div>
+        <div className="page-header-right">
+          <button className="btn btn-outline sm" onClick={() => void loadCoupons()}>↻ Yangilash</button>
+          <button className="btn btn-primary" onClick={openAddCouponModal}>+ Yangi kupon</button>
+        </div>
       </div>
+
       <div className="table-container">
         <table>
-          <thead><tr><th>Kod</th><th>Qiymat</th><th>Ishlatilgan</th><th>Status</th><th></th></tr></thead>
+          <thead>
+            <tr>
+              <th>Promokod</th>
+              <th>Chegirma</th>
+              <th>Foydalanildi</th>
+              <th>Holat</th>
+              <th>Amallar</th>
+            </tr>
+          </thead>
           <tbody>
-            {couponsLoadState === 'loading' && <tr><td colSpan={5}>Kuponlar yuklanmoqda...</td></tr>}
+            {couponsLoadState === 'loading' && (
+              <tr><td colSpan={5} style={{ textAlign: 'center', padding: '2rem' }}>Kuponlar yuklanmoqda...</td></tr>
+            )}
             {couponsLoadState === 'error' && coupons.length === 0 && (
-              <tr><td colSpan={5} className="admin-data-error" role="alert">
-                Kuponlarni yuklab bo'lmadi.
-                <button className="btn btn-outline sm" onClick={() => void loadCoupons()}>Qayta urinish</button>
-              </td></tr>
+              <tr>
+                <td colSpan={5} className="admin-data-error" role="alert">
+                  Kuponlarni yuklab bo'lmadi.
+                  <button className="btn btn-outline sm" onClick={() => void loadCoupons()}>Qayta urinish</button>
+                </td>
+              </tr>
             )}
             {couponsLoadState === 'error' && coupons.length > 0 && (
-              <tr><td colSpan={5} className="admin-data-warning" role="status">Yangilash muvaffaqiyatsiz. Oxirgi yuklangan ma'lumotlar ko'rsatilmoqda.</td></tr>
+              <tr>
+                <td colSpan={5} className="admin-data-warning" role="status">
+                  Yangilash muvaffaqiyatsiz. Oxirgi yuklangan ma'lumotlar ko'rsatilmoqda.
+                </td>
+              </tr>
             )}
             {couponsLoadState === 'ready' && coupons.length === 0 && (
-              <tr><td colSpan={5} style={{ textAlign: 'center' }}>Kuponlar topilmadi.</td></tr>
-            )}
-            {coupons.map(c => (
-              <tr key={c.id}>
-                <td style={{ fontWeight: 700, color: 'var(--primary)' }}>{c.code}</td>
-                <td>{c.discount_type === 'percent' ? c.discount_value + '%' : c.discount_value.toLocaleString() + ' sum'}</td>
-                <td>{c.used_count} / {c.max_uses}</td>
-                <td><span className={`badge ${c.is_active ? 'badge-delivered' : 'badge-cancelled'}`}>{c.is_active ? 'Faol' : "O'chgan"}</span></td>
-                <td><button className="btn btn-danger sm" onClick={() => deleteCoupon(c.id)}>🗑</button></td>
+              <tr>
+                <td colSpan={5} style={{ textAlign: 'center', padding: '2rem', color: 'var(--gray)' }}>
+                  Hali kuponlar yaratilmagan. Yangi kupon qo'shishingiz mumkin.
+                </td>
               </tr>
-            ))}
+            )}
+            {coupons.map(c => {
+              const usagePercent = Math.min(100, Math.round((c.used_count / Math.max(1, c.max_uses)) * 100));
+              return (
+                <tr key={c.id}>
+                  <td>
+                    <span style={{ display: 'inline-block', padding: '0.3rem 0.65rem', borderRadius: 8, background: 'rgba(255, 107, 0, 0.12)', border: '1px solid rgba(255, 107, 0, 0.25)', color: '#FF922B', fontWeight: 800, letterSpacing: '0.05em', fontFamily: 'monospace', fontSize: '0.9rem' }}>
+                      {c.code}
+                    </span>
+                  </td>
+                  <td style={{ fontWeight: 700, color: '#fff' }}>
+                    {c.discount_type === 'percent' ? `${c.discount_value}%` : `${c.discount_value.toLocaleString()} so'm`}
+                  </td>
+                  <td>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', minWidth: '120px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.76rem', color: 'var(--gray)' }}>
+                        <span>{c.used_count} ta</span>
+                        <span>max {c.max_uses}</span>
+                      </div>
+                      <div style={{ height: 5, width: '100%', background: 'rgba(255,255,255,0.08)', borderRadius: 3, overflow: 'hidden' }}>
+                        <div style={{ height: '100%', width: `${usagePercent}%`, background: usagePercent > 80 ? '#EF4444' : '#10B981', borderRadius: 3 }} />
+                      </div>
+                    </div>
+                  </td>
+                  <td>
+                    <span className={`badge ${c.is_active ? 'badge-delivered' : 'badge-cancelled'}`}>
+                      {c.is_active ? 'Faol' : "O'chirilgan"}
+                    </span>
+                  </td>
+                  <td>
+                    <button className="btn btn-danger sm" onClick={() => deleteCoupon(c.id)} title="O'chirish">
+                      🗑 O'chirish
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
@@ -1476,31 +1846,81 @@ export function Coupons({ ctx }: { ctx: AdminCtx }) {
 export function Broadcast({ ctx }: { ctx: AdminCtx }) {
   const { showToast } = ctx;
   const [text, setText] = useState('');
+  const [sending, setSending] = useState(false);
 
   async function sendBroadcast(): Promise<void> {
-    if (!text) { showToast('Xabar yozing!', 'error'); return; }
-    if (!confirm('Haqiqatdan ham barcha foydalanuvchilarga xabar yubormoqchimisiz?')) return;
+    if (!text.trim()) { showToast('Xabar matnini kiriting!', 'error'); return; }
+    if (!confirm('Haqiqatdan ham BARCHA mijozlarga ushbu xabarni yuborishni tasdiqlaysizmi?')) return;
+    setSending(true);
     try {
       await apiPost('/api/admin/broadcast', { message: text });
-      showToast('Xabar yuborish boshlandi!', 'success');
+      showToast('Ommaviy xabar yuborish boshlandi!', 'success');
       setText('');
-    } catch (err) { showToast('Xatolik!', 'error'); }
+    } catch (err) {
+      showToast('Xatolik yuz berdi!', 'error');
+    } finally {
+      setSending(false);
+    }
   }
 
   return (
     <>
-      <h1 className="page-title">📢 Xabar yuborish</h1>
-      <div className="stat-card" style={{ maxWidth: 600 }}>
-        <div className="form-group">
-          <label className="form-label">Xabar matni</label>
-          <textarea className="form-textarea" rows={8} placeholder="Barcha foydalanuvchilarga yuboriladigan xabar..."
-            value={text} onChange={e => setText(e.target.value)} />
+      <div className="page-header-container">
+        <div className="page-header-left">
+          <div className="page-header-title">
+            <span>📢</span>
+            <span>Ommaviy Xabarnoma</span>
+          </div>
+          <div className="page-header-subtitle">
+            Barcha faol Telegram mijozlariga muhim yangilik va chegirmalarni yetkazish
+          </div>
         </div>
-        <div style={{ background: 'rgba(0,0,0,0.2)', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1.5rem' }}>
-          <small style={{ color: 'var(--gray)' }}>Ko'rinishi:</small>
-          <div style={{ marginTop: '0.5rem', whiteSpace: 'pre-wrap' }}>{text}</div>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(300px, 1.2fr) minmax(280px, 1fr)', gap: '1.5rem', alignItems: 'start' }}>
+        <div className="stat-card">
+          <div className="form-group">
+            <label className="form-label" style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span>Xabar matni</span>
+              <span style={{ fontSize: '0.75rem', color: 'var(--gray)' }}>{text.length} ta belgi</span>
+            </label>
+            <textarea
+              className="form-textarea"
+              rows={9}
+              placeholder="Assalomu alaykum! Bugun barcha buyurtmalarga 15% chegirma..."
+              value={text}
+              onChange={e => setText(e.target.value)}
+            />
+          </div>
+          <button
+            className="btn btn-primary"
+            disabled={sending || !text.trim()}
+            onClick={sendBroadcast}
+            style={{ width: '100%', padding: '0.8rem' }}
+          >
+            {sending ? '⏳ Yuborilmoqda...' : '🚀 Xabarni barcha foydalanuvchilarga yuborish'}
+          </button>
         </div>
-        <button className="btn btn-primary" onClick={sendBroadcast} style={{ width: '100%' }}>🚀 Xabarni yuborish</button>
+
+        <div className="stat-card">
+          <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.85rem' }}>
+            Telegram ko'rinishi (Preview)
+          </div>
+          <div style={{ background: '#0F172A', borderRadius: 12, padding: 14, border: '1px solid rgba(255,255,255,0.08)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+              <div style={{ width: 30, height: 30, borderRadius: '50%', background: '#FF6B00', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.9rem' }}>
+                🍔
+              </div>
+              <div>
+                <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#fff' }}>Food City Bot</div>
+                <div style={{ fontSize: '0.7rem', color: '#10B981' }}>bot</div>
+              </div>
+            </div>
+            <div style={{ background: '#1E293B', padding: '10px 12px', borderRadius: '4px 12px 12px 12px', fontSize: '0.85rem', lineHeight: 1.5, color: '#F1F5F9', whiteSpace: 'pre-wrap', wordBreak: 'break-word', minHeight: 60 }}>
+              {text.trim() || <span style={{ color: '#64748B', fontStyle: 'italic' }}>Xabar matni shu yerda ko'rinadi...</span>}
+            </div>
+          </div>
+        </div>
       </div>
     </>
   );
@@ -1532,7 +1952,7 @@ export function Couriers({ ctx }: { ctx: AdminCtx }) {
   async function addCourier(): Promise<void> {
     const id = newId.trim();
     if (!id || !/^\d+$/.test(id)) {
-      showToast("To'g'ri Telegram ID kiriting (raqamlardan iborat)", 'error');
+      showToast("To'g'ri Telegram ID kiriting (faqat raqamlar)", 'error');
       return;
     }
     setBusy(true);
@@ -1541,7 +1961,7 @@ export function Couriers({ ctx }: { ctx: AdminCtx }) {
       if (res.error) {
         showToast(res.error, 'error');
       } else {
-        showToast('Kuryer qo\'shildi', 'success');
+        showToast("Kuryer muvaffaqiyatli qo'shildi", 'success');
         setNewId('');
         loadCouriers();
       }
@@ -1560,46 +1980,106 @@ export function Couriers({ ctx }: { ctx: AdminCtx }) {
 
   return (
     <>
-      <h1 className="page-title">🛵 Kuryerlar <button className="btn btn-outline sm" onClick={() => void loadCouriers()}>↻ Yangilash</button></h1>
+      <div className="page-header-container">
+        <div className="page-header-left">
+          <div className="page-header-title">
+            <span>🛵</span>
+            <span>Kuryerlar Boshqaruvi</span>
+          </div>
+          <div className="page-header-subtitle">
+            Buyurtmalarni yetkazib beruvchi kuryerlar ro'yxati va avtorizatsiyasi
+          </div>
+        </div>
+        <div className="page-header-right">
+          <button className="btn btn-outline sm" onClick={() => void loadCouriers()}>↻ Yangilash</button>
+        </div>
+      </div>
 
-      <div className="stat-card" style={{ maxWidth: 500, marginBottom: '1.5rem' }}>
-        <div className="form-label" style={{ marginBottom: 8 }}>Yangi kuryer qo'shish</div>
-        <p style={{ fontSize: 13, color: 'var(--gray)', marginBottom: 12 }}>
-          Kuryer avval botga <code>/start</code> bosgan bo'lishi kerak. Uning Telegram ID'sini kiriting
-          (botga <code>/myid</code> yozib olishi mumkin, yoki @userinfobot orqali).
+      <div className="stat-card" style={{ maxWidth: 650, marginBottom: '1.75rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: 6 }}>
+          <span style={{ fontSize: '1.15rem' }}>➕</span>
+          <span style={{ fontWeight: 750, color: '#fff', fontSize: '0.95rem' }}>Yangi kuryer tayinlash</span>
+        </div>
+        <p style={{ fontSize: '0.82rem', color: 'var(--gray)', marginBottom: '1rem', lineHeight: 1.5 }}>
+          Kuryer avval Telegram botimizga <code>/start</code> bosgan bo'lishi lozim. Uning Telegram raqamli ID'sini kiriting
+          (botga <code>/myid</code> yuborib bilishi mumkin).
         </p>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <input type="text" className="form-input" placeholder="Telegram ID (masalan: 123456789)"
-            value={newId} onChange={e => setNewId(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Enter') addCourier(); }} />
-          <button className="btn btn-primary" disabled={busy} onClick={addCourier}>Qo'shish</button>
+        <div style={{ display: 'flex', gap: '0.65rem' }}>
+          <input
+            type="text"
+            className="form-input"
+            placeholder="Telegram ID (masalan: 123456789)"
+            value={newId}
+            onChange={e => setNewId(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') addCourier(); }}
+          />
+          <button className="btn btn-primary" disabled={busy} onClick={addCourier}>
+            {busy ? '⏳ Qo\'shilmoqda...' : 'Qo\'shish'}
+          </button>
         </div>
       </div>
 
       <div className="table-container">
         <table>
-          <thead><tr><th>Ism</th><th>Username</th><th>ID</th><th>Qo'shilgan</th><th></th></tr></thead>
+          <thead>
+            <tr>
+              <th>Kuryer</th>
+              <th>Username</th>
+              <th>Telegram ID</th>
+              <th>Biriktirilgan Sana</th>
+              <th>Amallar</th>
+            </tr>
+          </thead>
           <tbody>
-            {couriersLoadState === 'loading' && <tr><td colSpan={5}>Kuryerlar yuklanmoqda...</td></tr>}
+            {couriersLoadState === 'loading' && (
+              <tr><td colSpan={5} style={{ textAlign: 'center', padding: '2rem' }}>Kuryerlar yuklanmoqda...</td></tr>
+            )}
             {couriersLoadState === 'error' && couriers.length === 0 && (
-              <tr><td colSpan={5} className="admin-data-error" role="alert">
-                Kuryerlarni yuklab bo'lmadi.
-                <button className="btn btn-outline sm" onClick={() => void loadCouriers()}>Qayta urinish</button>
-              </td></tr>
+              <tr>
+                <td colSpan={5} className="admin-data-error" role="alert">
+                  Kuryerlarni yuklab bo'lmadi.
+                  <button className="btn btn-outline sm" onClick={() => void loadCouriers()}>Qayta urinish</button>
+                </td>
+              </tr>
             )}
             {couriersLoadState === 'error' && couriers.length > 0 && (
-              <tr><td colSpan={5} className="admin-data-warning" role="status">Yangilash muvaffaqiyatsiz. Oxirgi yuklangan ma'lumotlar ko'rsatilmoqda.</td></tr>
+              <tr>
+                <td colSpan={5} className="admin-data-warning" role="status">
+                  Yangilash muvaffaqiyatsiz. Oxirgi yuklangan ma'lumotlar ko'rsatilmoqda.
+                </td>
+              </tr>
             )}
             {couriersLoadState === 'ready' && couriers.length === 0 && (
-              <tr><td colSpan={5} style={{ textAlign: 'center', color: 'var(--gray)' }}>Hali kuryer qo'shilmagan</td></tr>
+              <tr>
+                <td colSpan={5} style={{ textAlign: 'center', padding: '2rem', color: 'var(--gray)' }}>
+                  Hali kuryer biriktirilmagan. Yuqoridagi forma orqali kuryer qo'shing.
+                </td>
+              </tr>
             )}
             {couriers.map(c => (
               <tr key={c.user_id}>
-                <td>{c.users?.full_name || "Noma'lum"}</td>
-                <td>@{c.users?.username || '-'}</td>
-                <td>{c.user_id}</td>
-                <td>{new Date(c.added_at).toLocaleDateString('uz-UZ')}</td>
-                <td><button className="btn btn-danger sm" onClick={() => removeCourier(c.user_id)}>🗑</button></td>
+                <td>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                    <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(59, 130, 246, 0.15)', border: '1px solid rgba(59, 130, 246, 0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, color: '#60A5FA', fontSize: '0.8rem' }}>
+                      🛵
+                    </div>
+                    <strong style={{ color: '#fff' }}>{c.users?.full_name || "Noma'lum"}</strong>
+                  </div>
+                </td>
+                <td style={{ color: 'var(--gray)' }}>
+                  {c.users?.username ? `@${c.users.username}` : '—'}
+                </td>
+                <td style={{ fontFamily: 'monospace', color: '#93C5FD' }}>
+                  {c.user_id}
+                </td>
+                <td style={{ color: 'var(--gray)', fontSize: '0.82rem' }}>
+                  {new Date(c.added_at).toLocaleDateString('uz-UZ')}
+                </td>
+                <td>
+                  <button className="btn btn-danger sm" onClick={() => removeCourier(c.user_id)} title="O'chirish">
+                    🗑 O'chirish
+                  </button>
+                </td>
               </tr>
             ))}
           </tbody>
@@ -1666,50 +2146,96 @@ export function Settings({ ctx }: { ctx: AdminCtx }) {
 
   return (
     <>
-      <h1 className="page-title">⚙️ Sozlamalar</h1>
+      <div className="page-header-container">
+        <div className="page-header-left">
+          <div className="page-header-title">
+            <span>⚙️</span>
+            <span>Tizim Sozlamalari</span>
+          </div>
+          <div className="page-header-subtitle">
+            Click va Payme rasmiy to'lov tizimlari integratsiyasi
+          </div>
+        </div>
+      </div>
 
-      <div style={{ maxWidth: 700 }}>
-        {/* CLICK & PAYME INTEGRATSIYASI */}
-        <div className="stat-card">
-          <div className="form-label" style={{ marginBottom: 6, fontSize: 16 }}>⚡ Click & Payme Integratsiyasi</div>
-          <p style={{ fontSize: 13, color: 'var(--gray)', marginBottom: 14 }}>
-            Mijozlar buyurtmani 1 ta bosishda to'lashi va soxta cheklarning oldini olish uchun rasmiy merchant kalitlari.
-          </p>
-
-          <div style={{ marginBottom: 16, padding: 12, borderRadius: 10, background: 'rgba(0,177,89,0.08)', border: '1px solid rgba(0,177,89,0.25)' }}>
-            <div style={{ fontWeight: 800, color: '#00B159', marginBottom: 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <span>🟢 Click Merchant</span>
-              <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 20, background: clickIsConfigured ? '#00B15922' : '#EF444422', color: clickIsConfigured ? '#00B159' : '#EF4444' }}>
-                {clickIsConfigured ? 'Ulangan' : 'Ulanmagan'}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.5rem', maxWidth: 960 }}>
+        {/* CLICK INTEGRATSIYASI */}
+        <div className="stat-card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, paddingBottom: 10, borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: '1.3rem' }}>🟢</span>
+                <strong style={{ fontSize: '1.05rem', color: '#00B159' }}>Click Merchant</strong>
+              </div>
+              <span style={{ fontSize: '0.72rem', fontWeight: 700, padding: '3px 10px', borderRadius: 999, background: clickIsConfigured ? 'rgba(0,177,89,0.15)' : 'rgba(239,68,68,0.15)', color: clickIsConfigured ? '#00B159' : '#EF4444', border: `1px solid ${clickIsConfigured ? 'rgba(0,177,89,0.3)' : 'rgba(239,68,68,0.3)'}` }}>
+                {clickIsConfigured ? '✅ Faol' : '❌ Ulanmagan'}
               </span>
             </div>
-            <input type="text" className="form-input" style={{ marginBottom: 8 }} placeholder="Click Service ID"
-              value={clickServiceId} disabled={!loaded} onChange={e => setClickServiceId(e.target.value)} />
-            <input type="text" className="form-input" style={{ marginBottom: 8 }} placeholder="Click Merchant ID"
-              value={clickMerchantId} disabled={!loaded} onChange={e => setClickMerchantId(e.target.value)} />
-            <input type="password" className="form-input" placeholder="Click Secret Key (o'zgartirish uchun)"
-              value={clickSecretKey} disabled={!loaded} onChange={e => setClickSecretKey(e.target.value)} />
-          </div>
+            <p style={{ fontSize: '0.8rem', color: 'var(--gray)', marginBottom: 14 }}>
+              Click orqali to'lovlarni qabul qilish va avtomatik tasdiqlash uchun kabinetingizdagi kalitlar.
+            </p>
 
-          <div style={{ marginBottom: 16, padding: 12, borderRadius: 10, background: 'rgba(0,204,204,0.08)', border: '1px solid rgba(0,204,204,0.25)' }}>
-            <div style={{ fontWeight: 800, color: '#00CCCC', marginBottom: 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <span>🔵 Payme Business</span>
-              <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 20, background: paymeIsConfigured ? '#00CCCC22' : '#EF444422', color: paymeIsConfigured ? '#00CCCC' : '#EF4444' }}>
-                {paymeIsConfigured ? 'Ulangan' : 'Ulanmagan'}
+            <div className="form-group">
+              <label className="form-label">Click Service ID</label>
+              <input type="text" className="form-input" placeholder="Service ID"
+                value={clickServiceId} disabled={!loaded} onChange={e => setClickServiceId(e.target.value)} />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Click Merchant ID</label>
+              <input type="text" className="form-input" placeholder="Merchant ID"
+                value={clickMerchantId} disabled={!loaded} onChange={e => setClickMerchantId(e.target.value)} />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Click Secret Key</label>
+              <input type="password" className="form-input" placeholder="Secret Key (o'zgartirish uchun)"
+                value={clickSecretKey} disabled={!loaded} onChange={e => setClickSecretKey(e.target.value)} />
+            </div>
+          </div>
+        </div>
+
+        {/* PAYME INTEGRATSIYASI */}
+        <div className="stat-card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, paddingBottom: 10, borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: '1.3rem' }}>🔵</span>
+                <strong style={{ fontSize: '1.05rem', color: '#00CCCC' }}>Payme Business</strong>
+              </div>
+              <span style={{ fontSize: '0.72rem', fontWeight: 700, padding: '3px 10px', borderRadius: 999, background: paymeIsConfigured ? 'rgba(0,204,204,0.15)' : 'rgba(239,68,68,0.15)', color: paymeIsConfigured ? '#00CCCC' : '#EF4444', border: `1px solid ${paymeIsConfigured ? 'rgba(0,204,204,0.3)' : 'rgba(239,68,68,0.3)'}` }}>
+                {paymeIsConfigured ? '✅ Faol' : '❌ Ulanmagan'}
               </span>
             </div>
-            <input type="text" className="form-input" style={{ marginBottom: 8 }} placeholder="Payme Merchant ID"
-              value={paymeMerchantId} disabled={!loaded} onChange={e => setPaymeMerchantId(e.target.value)} />
-            <input type="password" className="form-input" style={{ marginBottom: 8 }} placeholder="Payme Secret Key (o'zgartirish uchun)"
-              value={paymeSecretKey} disabled={!loaded} onChange={e => setPaymeSecretKey(e.target.value)} />
-            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--text2)', cursor: 'pointer' }}>
-              <input type="checkbox" checked={paymeTestMode} onChange={e => setPaymeTestMode(e.target.checked)} />
-              <span>Payme Test / Sandbox rejimi</span>
-            </label>
-          </div>
+            <p style={{ fontSize: '0.8rem', color: 'var(--gray)', marginBottom: 14 }}>
+              Payme orqali kartadan kartaga xavfsiz to'lov va fiskal chek integratsiyasi.
+            </p>
 
-          <button className="btn btn-primary" style={{ width: '100%' }} disabled={busy || !loaded} onClick={saveClickPayme}>
-            Click & Payme sozlamalarini saqlash
+            <div className="form-group">
+              <label className="form-label">Payme Merchant ID</label>
+              <input type="text" className="form-input" placeholder="Merchant ID"
+                value={paymeMerchantId} disabled={!loaded} onChange={e => setPaymeMerchantId(e.target.value)} />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Payme Secret Key</label>
+              <input type="password" className="form-input" placeholder="Secret Key (o'zgartirish uchun)"
+                value={paymeSecretKey} disabled={!loaded} onChange={e => setPaymeSecretKey(e.target.value)} />
+            </div>
+            <div className="form-group" style={{ marginTop: '0.75rem' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.84rem', color: '#E2E8F0', cursor: 'pointer' }}>
+                <input type="checkbox" checked={paymeTestMode} onChange={e => setPaymeTestMode(e.target.checked)} />
+                <span>Payme Test / Sandbox rejimi</span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <div style={{ gridColumn: '1 / -1' }}>
+          <button
+            className="btn btn-primary"
+            style={{ width: '100%', padding: '0.85rem' }}
+            disabled={busy || !loaded}
+            onClick={saveClickPayme}
+          >
+            {busy ? '⏳ Saqlanmoqda...' : '💾 Click & Payme sozlamalarini saqlash'}
           </button>
         </div>
       </div>

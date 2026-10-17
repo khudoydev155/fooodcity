@@ -17,16 +17,41 @@ interface NavDef {
   icon: ReactNode;
 }
 
-const NAV_ITEMS: NavDef[] = [
-  { page: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={20} /> },
-  { page: 'orders', label: 'Buyurtmalar', icon: <ShoppingBag size={20} /> },
-  { page: 'menu', label: 'Menyu', icon: <Menu size={20} /> },
-  { page: 'promotions', label: 'Stories & Banner', icon: <Images size={20} /> },
-  { page: 'users', label: 'Foydalanuvchilar', icon: <UsersIcon size={20} /> },
-  { page: 'coupons', label: 'Kuponlar', icon: <Tag size={20} /> },
-  { page: 'couriers', label: 'Kuryerlar', icon: <Truck size={20} /> },
-  { page: 'broadcast', label: 'Broadcast', icon: <BroadcastIcon size={20} /> },
-  { page: 'settings', label: 'Sozlamalar', icon: <SettingsIcon size={20} /> },
+interface NavSection {
+  title: string;
+  items: NavDef[];
+}
+
+const NAV_SECTIONS: NavSection[] = [
+  {
+    title: 'Asosiy',
+    items: [
+      { page: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={18} /> },
+      { page: 'orders', label: 'Buyurtmalar', icon: <ShoppingBag size={18} /> },
+    ]
+  },
+  {
+    title: 'Katalog & Savdo',
+    items: [
+      { page: 'menu', label: 'Menyu', icon: <Menu size={18} /> },
+      { page: 'promotions', label: 'Stories & Banner', icon: <Images size={18} /> },
+      { page: 'coupons', label: 'Kuponlar', icon: <Tag size={18} /> },
+    ]
+  },
+  {
+    title: 'Boshqaruv',
+    items: [
+      { page: 'users', label: 'Foydalanuvchilar', icon: <UsersIcon size={18} /> },
+      { page: 'couriers', label: 'Kuryerlar', icon: <Truck size={18} /> },
+      { page: 'broadcast', label: 'Broadcast', icon: <BroadcastIcon size={18} /> },
+    ]
+  },
+  {
+    title: 'Tizim',
+    items: [
+      { page: 'settings', label: 'Sozlamalar', icon: <SettingsIcon size={18} /> },
+    ]
+  }
 ];
 
 interface AuthResponse {
@@ -270,35 +295,78 @@ function AppContent({ onAuth, showToast }: { onAuth: (token: string) => void; sh
 
   const ctx: AdminCtx = { showToast, openModal, closeModal, refreshTick, bumpRefresh };
 
+  const adminUser = (() => {
+    try {
+      return JSON.parse(sessionStorage.getItem('admin_user') || '{}');
+    } catch {
+      return {};
+    }
+  })();
+  const adminRole = sessionStorage.getItem('admin_role') || 'staff';
+
   return (
     <>
       <main id="app">
         <aside className="sidebar">
-          <div className="sidebar-logo">
-            <span>🍔</span> <span>Food City</span>
+          <div className="sidebar-brand">
+            <div className="sidebar-brand-badge">🍔</div>
+            <div className="sidebar-brand-info">
+              <span className="sidebar-brand-title">Food City</span>
+              <span className="sidebar-brand-sub">Admin Panel</span>
+            </div>
           </div>
-          <ul className="nav-list">
-            {NAV_ITEMS.map(n => (
-              <li key={n.page} className={`nav-item${currentPage === n.page ? ' active' : ''}`}>
-                <Link to={`/${n.page}`} className="nav-link">
-                  {n.icon}
-                  <span>{n.label}</span>
-                </Link>
-              </li>
+
+          <div className="nav-list">
+            {NAV_SECTIONS.map((section, sIdx) => (
+              <div key={sIdx} className="nav-section">
+                <div className="nav-section-title">{section.title}</div>
+                <ul style={{ listStyle: 'none' }}>
+                  {section.items.map(n => (
+                    <li key={n.page} className={`nav-item${currentPage === n.page ? ' active' : ''}`}>
+                      <Link to={`/${n.page}`} className="nav-link">
+                        {n.icon}
+                        <span>{n.label}</span>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             ))}
-          </ul>
-          <div
-            className="nav-item sound-toggle-btn"
-            onClick={toggleMute}
-            style={{ cursor: 'pointer' }}
-            title={isMuted ? "Ovozli bildirishnomani yoqish" : "Ovozli bildirishnomani o'chirish"}
-          >
-            <span style={{ fontSize: '1.15rem' }}>{isMuted ? '🔇' : '🔊'}</span>
-            <span>{isMuted ? "Ovoz o'chiq" : "Ovoz yoniq"}</span>
           </div>
-          <div className="nav-item logout-btn" onClick={() => { logout(); onAuth(''); }}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-            <span>Chiqish</span>
+
+          <div className="sidebar-footer">
+            <div className="sidebar-user-card">
+              <div className="sidebar-user-info">
+                <div className="sidebar-user-avatar">
+                  {(adminUser.first_name || 'A').charAt(0).toUpperCase()}
+                </div>
+                <div className="sidebar-user-meta">
+                  <span className="sidebar-user-name">{adminUser.first_name || 'Admin'}</span>
+                  <span className="sidebar-user-role">{adminRole === 'superadmin' ? 'Superadmin' : 'Menejer'}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="sidebar-actions-row">
+              <button
+                type="button"
+                className="sidebar-action-btn"
+                onClick={toggleMute}
+                title={isMuted ? "Ovozli bildirishnomani yoqish" : "Ovozli bildirishnomani o'chirish"}
+              >
+                <span>{isMuted ? '🔇' : '🔊'}</span>
+                <span>{isMuted ? "O'chiq" : "Yoniq"}</span>
+              </button>
+              <button
+                type="button"
+                className="sidebar-action-btn logout"
+                onClick={() => { logout(); onAuth(''); }}
+                title="Tizimdan chiqish"
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                <span>Chiqish</span>
+              </button>
+            </div>
           </div>
         </aside>
 
