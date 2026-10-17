@@ -66,6 +66,22 @@ async function reverseGeocode(lat: number, lon: number): Promise<string | null> 
   }
 }
 
+function formatUzPhone(value: string): string {
+  const digits = value.replace(/\D/g, '');
+  if (!digits) return '';
+  let core = digits;
+  if (core.startsWith('998')) {
+    core = core.slice(3);
+  }
+  core = core.slice(0, 9);
+  let res = '+998';
+  if (core.length > 0) res += ' (' + core.slice(0, 2);
+  if (core.length >= 2) res += ') ' + core.slice(2, 5);
+  if (core.length >= 5) res += '-' + core.slice(5, 7);
+  if (core.length >= 7) res += '-' + core.slice(7, 9);
+  return res;
+}
+
 export default function App() {
   const [splashVisible, setSplashVisible] = useState(true);
   const [splashFading, setSplashFading] = useState(false);
@@ -99,6 +115,8 @@ export default function App() {
   const [profile, setProfile] = useState<Profile>({ points: 0, orders: 0, spent: 0 });
   const [phoneVerified, setPhoneVerified] = useState<boolean | null>(null);
   const [phoneNumber, setPhoneNumber] = useState<string | null>(null);
+  const [customerPhone, setCustomerPhone] = useState<string>(() => localStorage.getItem('foodcity-customer-phone') || '');
+  const [phoneError, setPhoneError] = useState<string>('');
   const [fulfillmentMode, setFulfillmentMode] = useState<FulfillmentMode>('delivery');
   const [cancelOrderId, setCancelOrderId] = useState<string | null>(null);
   const [cancellingOrderId, setCancellingOrderId] = useState<string | null>(null);
@@ -497,19 +515,20 @@ export default function App() {
 
   // ORDER
   async function placeOrder(): Promise<void> {
-    if (phoneVerified === false) {
-      tg.showPopup(
-        {
-          title: "📱 Telefon raqamini tasdiqlang",
-          message: "Buyurtma berishdan oldin botga o'tib, Telegram so'rovi orqali o'z telefon raqamingizni ulashing.",
-          buttons: [{ id: "share-phone", type: "default", text: "Botga o'tish" }]
-        },
-        (buttonId) => {
-          if (buttonId === "share-phone") {
-            tg.openTelegramLink("https://t.me/foood_city_official_bot?start=share_phone");
-          }
-        }
-      );
+    const phoneDigits = customerPhone.replace(/\D/g, '');
+    let cleanPhone = '';
+    if (phoneDigits.startsWith('998') && phoneDigits.length === 12) {
+      cleanPhone = '+' + phoneDigits;
+    } else if (phoneDigits.length === 9) {
+      cleanPhone = '+998' + phoneDigits;
+    }
+
+    if (!cleanPhone) {
+      setPhoneError(t('phoneRequiredError', lang));
+      showToast("❌ " + t('phoneRequiredError', lang));
+      const el = document.getElementById('phone-input');
+      el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      el?.focus();
       return;
     }
 
@@ -554,6 +573,7 @@ export default function App() {
       coupon_code: appliedCoupon ? appliedCoupon.code : null,
       delivery_address: fulfillmentMode === 'pickup' ? t('pickupDetails', lang) : address,
       fulfillment_mode: fulfillmentMode,
+      phone: cleanPhone,
       note,
       language: lang,
       payment_method: paymentMethod
@@ -574,24 +594,6 @@ export default function App() {
           message: result.error || "Bot hozirda faol emas. Iltimos keyinroq urinib ko'ring.",
           buttons: [{ type: 'ok', text: 'Tushunarli' }]
         });
-        setOrdering(false);
-        return;
-      }
-
-      if (response.status === 428) {
-        setPhoneVerified(false);
-        tg.showPopup(
-          {
-            title: "📱 Telefon raqamini tasdiqlang",
-            message: "Buyurtma berish uchun botdagi so'rov orqali o'z telefon raqamingizni ulashing.",
-            buttons: [{ id: "share-phone", type: "default", text: "Botga o'tish" }]
-          },
-          (buttonId) => {
-            if (buttonId === "share-phone") {
-              tg.openTelegramLink("https://t.me/foood_city_official_bot?start=share_phone");
-            }
-          }
-        );
         setOrdering(false);
         return;
       }
@@ -779,10 +781,22 @@ export default function App() {
         setUserPoints(data.loyalty_points || 0);
         setPhoneVerified(data.phone_verified === true);
         setPhoneNumber(data.phone_verified ? data.phone_number || null : null);
+        if (data.phone_number) {
+          const formatted = formatUzPhone(data.phone_number);
+          setCustomerPhone(prev => prev || formatted);
+          localStorage.setItem('foodcity-customer-phone', formatted);
+        }
       } catch (error) {
         console.error('Profile load failed:', error);
       }
     }
+  }
+
+  function handlePhoneChange(e: React.ChangeEvent<HTMLInputElement>): void {
+    const formatted = formatUzPhone(e.target.value);
+    setCustomerPhone(formatted);
+    localStorage.setItem('foodcity-customer-phone', formatted);
+    if (phoneError) setPhoneError('');
   }
 
   function changeLang(e: React.ChangeEvent<HTMLSelectElement>): void {
@@ -1143,6 +1157,28 @@ export default function App() {
                 </label>
               </div>
             )}
+
+            <div className="phone-section">
+              <div className="address-label">📞 {t('contactPhone', lang)} *</div>
+              <div className="phone-input-wrapper">
+                <span className="phone-flag-prefix">🇺🇿</span>
+                <input
+                  id="phone-input"
+                  type="tel"
+                  inputMode="numeric"
+                  className={`promo-input phone-input${phoneError ? ' error' : ''}`}
+                  placeholder="+998 (90) 123-45-67"
+                  value={customerPhone}
+                  onChange={handlePhoneChange}
+                  maxLength={19}
+                />
+              </div>
+              {phoneError ? (
+                <p className="phone-error-msg">{phoneError}</p>
+              ) : (
+                <p className="phone-help-msg">{t('phoneHelp', lang)}</p>
+              )}
+            </div>
 
             {fulfillmentMode === 'delivery' ? (
               <div className="address-section">

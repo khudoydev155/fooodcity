@@ -60,22 +60,12 @@ async def cmd_start(message: Message):
 
     welcome_text = (
         f"👋 <b>Assalomu alaykum, {escape(message.from_user.full_name)}!</b>\n\n"
-        "Food City fast-food kafesining rasmiy botiga xush kelibsiz."
+        "Food City fast-food kafesining rasmiy botiga xush kelibsiz.\n"
+        "Pastdagi tugma orqali menyuni ochib, buyurtma berishingiz mumkin."
     )
-    if user.get("phone_verified_at") and user.get("phone"):
-        await message.answer(
-            welcome_text + "\nPastdagi tugma orqali buyurtma berishingiz mumkin.",
-            reply_markup=order_keyboard(),
-            parse_mode="HTML",
-        )
-        return
-
     await message.answer(
-        welcome_text
-        + "\n\nBuyurtma berish uchun telefon raqamingizni tasdiqlang. "
-        "Quyidagi tugmani bosib o'zingizning raqamingizni Telegram orqali ulashing. "
-        "Qo'lda kiritilgan raqam qabul qilinmaydi.",
-        reply_markup=phone_request_keyboard(),
+        welcome_text,
+        reply_markup=order_keyboard(),
         parse_mode="HTML",
     )
 

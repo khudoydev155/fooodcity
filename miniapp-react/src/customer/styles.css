@@ -567,6 +567,56 @@ body,
   margin: 20px 0;
 }
 
+.phone-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.phone-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.phone-flag-prefix {
+  position: absolute;
+  left: 14px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 15px;
+  pointer-events: none;
+  user-select: none;
+}
+
+.phone-input {
+  width: 100%;
+  padding-left: 48px !important;
+  font-size: 15px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.5px;
+}
+
+.phone-input.error {
+  border-color: #EF4444 !important;
+  background: rgba(239, 68, 68, 0.08) !important;
+}
+
+.phone-error-msg {
+  color: #EF4444;
+  font-size: 12px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.phone-help-msg {
+  color: var(--text2);
+  font-size: 11px;
+  margin: 0;
+}
+
 .address-section {
   display: flex;
   flex-direction: column;

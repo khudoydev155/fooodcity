@@ -3,6 +3,7 @@ import hashlib
 import hmac
 from html import escape
 import json
+import re
 import time
 import uuid
 from urllib.parse import parse_qsl, quote
@@ -23,7 +24,7 @@ def format_admin_order_notification(order: dict, title: str) -> str:
     customer = order.get("users") or {}
     customer_name = escape(str(customer.get("full_name") or "Mijoz"))
     username = str(customer.get("username") or "").strip()
-    phone = str(customer.get("phone") or "").strip()
+    phone = str(order.get("phone") or customer.get("phone") or "").strip()
     phone_text = (
         f'<a href="tel:{quote(phone, safe="+")}">{escape(phone)}</a>'
         if phone
@@ -447,31 +448,35 @@ async def create_order_api(request: web.Request):
     if not user_id:
         return web.json_response({"error": "Unauthorized: Invalid Telegram initData"}, status=401)
 
-    try:
-        phone_res = await db._run_sync(
-            db.client.table("users")
-            .select("phone, phone_verified_at")
-            .eq("id", user_id)
-            .execute
-        )
-    except Exception:
-        logger.exception("Phone verification lookup failed for Telegram user %s", user_id)
-        return web.json_response(
-            {"error": "Telefon raqamini tasdiqlashni hozir tekshirib bo'lmadi. Qayta urinib ko'ring."},
-            status=503,
-        )
-    user = phone_res.data[0] if phone_res.data else None
-    if not user or not user.get("phone_verified_at") or not user.get("phone"):
-        return web.json_response(
-            {
-                "error": "Buyurtma berishdan oldin botga /start yuborib, telefon raqamingizni ulashing."
-            },
-            status=428,
-        )
-
     # 3. Process Order
     try:
         payload = await request.json()
+
+        # Phone validation: Delivery phone is mandatory in order payload or fallback to existing valid phone
+        raw_phone = str(payload.get("phone") or "").strip()
+        clean_phone = None
+        digits = re.sub(r"[^\d]", "", raw_phone)
+        if digits.startswith("998") and len(digits) == 12:
+            clean_phone = f"+{digits}"
+        elif len(digits) == 9:
+            clean_phone = f"+998{digits}"
+
+        if clean_phone:
+            # Update user profile with the delivery phone number
+            await db.verify_user_phone(user_id, clean_phone)
+            payload["phone"] = clean_phone
+        else:
+            # Check if user has an existing valid phone in database
+            user_data = await db.get_user(user_id)
+            existing_phone = (user_data.get("phone") or "").strip() if user_data else ""
+            existing_digits = re.sub(r"[^\d]", "", existing_phone)
+            if existing_digits.startswith("998") and len(existing_digits) == 12:
+                payload["phone"] = f"+{existing_digits}"
+            else:
+                return web.json_response(
+                    {"error": "Yetkazib berish uchun O'zbekiston telefon raqamingizni kiriting (+998 XX XXX XX XX)"},
+                    status=400,
+                )
 
         fulfillment_mode = payload.get("fulfillment_mode", "delivery")
         if fulfillment_mode not in ("delivery", "pickup"):
