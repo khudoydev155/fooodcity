@@ -998,14 +998,29 @@ class DatabaseManager:
             logger.exception(f"assign_courier({order_id}, {courier_id}) failed")
             raise
 
+    async def unassign_courier(self, order_id: str, courier_id: int) -> bool:
+        """Kuryer buyurtmani rad etganda, buyurtmadan kuryerni bo'shatadi."""
+        try:
+            res = await self._run_sync(
+                self.client.table("orders")
+                    .update({"courier_id": None, "courier_assigned_at": None})
+                    .eq("id", order_id)
+                    .eq("courier_id", courier_id)
+                    .execute
+            )
+            return bool(res.data)
+        except Exception as e:
+            logger.error(f"unassign_courier({order_id}, {courier_id}) failed: {e}")
+            return False
+
     async def get_order_for_courier_notification(self, order_id: str):
         try:
             res = await self._run_sync(
                 self.client.table("orders")
                     .select(
-                        "id,total,subtotal,delivery_fee,discount,items,delivery_address,location,note,"
+                        "id,user_id,status,courier_id,total,subtotal,delivery_fee,discount,items,delivery_address,location,note,"
                         "payment_method,payment_status,"
-                        "users!orders_user_id_fkey(full_name,phone)"
+                        "users!orders_user_id_fkey(full_name,username,phone)"
                     )
                     .eq("id", order_id)
                     .limit(1)
@@ -1015,6 +1030,38 @@ class DatabaseManager:
         except Exception:
             logger.exception("get_order_for_courier_notification(%s) failed", order_id)
             raise
+
+    async def get_courier_daily_stats(self, courier_id: int):
+        """Kuryerning bugungi yakunlangan buyurtmalari va kassa hisoboti."""
+        try:
+            from datetime import date
+            today_iso = date.today().isoformat()
+            res = await self._run_sync(
+                self.client.table("orders")
+                    .select("id,total,delivery_fee,payment_method,payment_status,status,created_at")
+                    .eq("courier_id", courier_id)
+                    .gte("created_at", f"{today_iso}T00:00:00")
+                    .execute
+            )
+            orders = res.data or []
+            delivered = [o for o in orders if o.get("status") == "delivered"]
+            cash_orders = [o for o in delivered if str(o.get("payment_method") or "").lower() == "cash"]
+            total_cash = sum(int(float(o.get("total") or 0)) for o in cash_orders)
+            total_delivery_fees = sum(int(float(o.get("delivery_fee") or 0)) for o in delivered)
+            return {
+                "delivered_count": len(delivered),
+                "total_orders_today": len(orders),
+                "total_cash_to_deposit": total_cash,
+                "total_delivery_fees": total_delivery_fees
+            }
+        except Exception as e:
+            logger.error(f"get_courier_daily_stats({courier_id}) failed: {e}")
+            return {
+                "delivered_count": 0,
+                "total_orders_today": 0,
+                "total_cash_to_deposit": 0,
+                "total_delivery_fees": 0
+            }
 
     async def get_courier_orders(self, courier_id: int):
         """Shu kuryerga biriktirilgan, hali yakunlanmagan buyurtmalar (eng yangisi birinchi)."""

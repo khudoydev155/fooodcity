@@ -7,7 +7,7 @@ from aiogram.enums import ParseMode
 from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_application
 from bot.config import config, validate_startup_config
 from bot.database import db
-from bot.handlers import customer, admin, menu_wizard
+from bot.handlers import customer, admin, menu_wizard, courier
 from bot.middlewares.auth import AuthMiddleware
 from bot.middlewares.throttle import ThrottleMiddleware
 from bot.middlewares.i18n import I18nMiddleware
@@ -86,6 +86,7 @@ def main():
     
     # Register Routers (Admin first to catch /admin)
     dp.include_router(admin.router)
+    dp.include_router(courier.router)
     dp.include_router(customer.router)
     dp.include_router(menu_wizard.router)
 

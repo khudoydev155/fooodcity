@@ -741,11 +741,16 @@ async def assign_courier_api(request: web.Request):
         if not bot:
             raise RuntimeError("Telegram bot is unavailable")
 
-        message = format_admin_order_notification(
-            order,
-            "🛵 <b>Sizga yangi buyurtma biriktirildi</b>",
+        from bot.handlers.courier import build_courier_message_text, build_courier_keyboard
+        message = build_courier_message_text(order, stage="assigned")
+        reply_markup = build_courier_keyboard(order, stage="assigned")
+        await bot.send_message(
+            courier_id,
+            message,
+            reply_markup=reply_markup,
+            parse_mode="HTML",
+            disable_web_page_preview=True
         )
-        await bot.send_message(courier_id, message, parse_mode="HTML")
         notification_sent = True
     except Exception:
         logger.exception("Courier assignment notification failed for order %s", order_id)
